@@ -14,4 +14,5 @@ dependencies = [
     "transformers>=4.56.2",
     "cupy-cuda12x",
     "dfloat11",
+    "torchvision>=0.23.0",
 ]
