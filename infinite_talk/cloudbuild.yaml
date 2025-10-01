@@ -11,35 +11,22 @@ steps:
       - "docker login -u $$DOCKER_USERNAME -p $$DOCKER_PASSWORD"
     secretEnv: ["DOCKER_USERNAME", "DOCKER_PASSWORD"]
 
-  # Build infinite-talk-server image
-  # - name: "gcr.io/cloud-builders/docker"
-  #   args:
-  #     [
-  #       "buildx",
-  #       "build",
-  #       "--platform=linux/amd64",
-  #       "--tag=elliotcarery/infinite-talk-server:1.0",
-  #       "--push",
-  #       "-f",
-  #       "dockerfile",
-  #       ".",
-  #     ]
-  #   dir: "backend/servers/infinite_talk"
-
-  # Build zonos-server image
+# Build infinite-talk-server image
   - name: "gcr.io/cloud-builders/docker"
+    entrypoint: 'bash'
     args:
-      [
-        "buildx",
-        "build",
-        "--platform=linux/amd64",
-        "--tag=elliotcarery/zonos-server:1.0.4",
-        "--push",
-        "-f",
-        "dockerfile",
-        ".",
-      ]
-    dir: "backend/servers/zonos"
+      - '-c'
+      - |
+        TAG="${TAG_NAME#infinite-talk-}"
+        docker buildx build \
+          --platform=linux/amd64 \
+          --tag=elliotcarery/infinite-talk-server:$$TAG \
+          --push \
+          -f dockerfile \
+          .
+    env:
+      - 'TAG_NAME=$TAG_NAME'
+    dir: 'infinite_talk'
 
 # Configure secrets
 availableSecrets:
