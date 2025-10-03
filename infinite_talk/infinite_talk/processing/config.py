@@ -47,8 +47,8 @@ config_overrides = {
         "save_file": "infinitetalk_res_lowvram"
     },
     "lora": {  # LoRA
-        "lora_dir": "weights/Wan2.1_I2V_14B_FusionX_LoRA.safetensors",            
-        "lora_scale": 1.0,
+        "lora_dir": ["weights/Wan14BT2VFusioniX/FusionX_LoRa/Wan2.1_I2V_14B_FusionX_LoRA.safetensors"],          
+        "lora_scale": [1.0],
         "sample_text_guide_scale": 1.0,
         "sample_audio_guide_scale": 2.0,
         "sample_steps": 8,

@@ -8,7 +8,7 @@ from infinite_talk.processing.config import default_args, config_overrides
 MODULE_PATH = Path(__file__).parent
 
 
-def run_audio_to_video(config: str = "low_vram") -> bytes:
+def run_audio_to_video(config: str = "lora") -> bytes:
     """
     Runs the audio-to-video generation process with configurable settings.
     Args:
