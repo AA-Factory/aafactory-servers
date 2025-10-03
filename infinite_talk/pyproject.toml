@@ -13,6 +13,7 @@ dependencies = [
     "easydict>=1.13",
     "fastapi>=0.116.1",
     "ftfy>=6.3.1",
+    "hf-transfer>=0.1.9",
     "imageio>=2.37.0",
     "imageio-ffmpeg>=0.6.0",
     "librosa>=0.11.0",
