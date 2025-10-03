@@ -26,3 +26,8 @@ Each server in this repository is designed to be easily plugged into the AAFacto
 2. Connect them to your Redis instance.
 3. Plug the servers into the AAFactory tool.
 4. When a request is made, the correct worker will pick up the task and process it, independent of where it is running.
+
+
+## Deployment
+- push a tag with the name of the server and its version. E.g: zonos-{{version}}
+- this will trigger a build that will be saved in https://hub.docker.com/u/elliotcarery
