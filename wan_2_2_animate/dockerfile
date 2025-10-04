@@ -1,0 +1,43 @@
+FROM pytorch/pytorch:2.6.0-cuda12.4-cudnn9-devel
+
+# Prevent interactive prompts during build
+ENV DEBIAN_FRONTEND=noninteractive
+
+ARG BUILD_ENV=local
+ENV BUILD_ENV=${BUILD_ENV}
+
+# Install Python, pip, git, and other essentials
+RUN apt-get update && apt-get install -y \
+    python3.10 python3-pip git ffmpeg \
+    && rm -rf /var/lib/apt/lists/* \
+    redis-server
+
+# Set python3.10 as the default python
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.10 1
+
+WORKDIR /app
+
+# Install 'uv' for faster package management
+RUN pip install uv
+
+# Copy project files
+COPY . .
+
+# Install Python dependencies using uv
+RUN uv sync
+
+# Clone the model's repository
+RUN git clone https://github.com/ali-vilab/wan2.2.git
+
+# Install the model's dependencies
+RUN uv pip install --system --no-cache -r wan2.2/requirements.txt
+
+# Make the model's code importable by adding it to the PYTHONPATH
+ENV PYTHONBUFFERED=1
+ENV PYTHONPATH="${PYTHONPATH}:/app/wan2.2"
+
+# Make the entrypoint script executable
+RUN chmod +x /app/entrypoint.sh
+
+# Set the entrypoint
+ENTRYPOINT ["/app/entrypoint.sh"]

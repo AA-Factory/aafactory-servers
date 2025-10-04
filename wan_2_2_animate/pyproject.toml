@@ -1,0 +1,14 @@
+[project]
+name = "backend"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = "==3.10.*"
+dependencies = [
+    "celery>=5.5.3",
+    "redis>=6.4.0",
+    "huggingface-cli==0.35.3",
+]
+
+[tool.setuptools]
+packages = ["wan_2_2_animate"]
