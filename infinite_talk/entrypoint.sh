@@ -9,6 +9,9 @@ uv run hf download MeiGen-AI/InfiniteTalk --local-dir ./weights/InfiniteTalk &
 uv run hf download vrgamedevgirl84/Wan14BT2VFusioniX \
   --local-dir ./weights/Wan14BT2VFusioniX \
   --include "FusionX_LoRa/Wan2.1_I2V_14B_FusionX_LoRA.safetensors" &
+uv run hf download Kijai/WanVideo_comfy \
+  --local-dir ./weights/WanVideo_comfy \
+  --include "Wan21_T2V_14B_lightx2v_cfg_step_distill_lora_rank32.safetensors" &
 
 
 # Wait for all background downloads to finish
