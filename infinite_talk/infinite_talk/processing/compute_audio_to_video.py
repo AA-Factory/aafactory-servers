@@ -8,7 +8,7 @@ from infinite_talk.processing.config import default_args, config_overrides
 MODULE_PATH = Path(__file__).parent
 
 
-def run_audio_to_video(config: str = "lora") -> bytes:
+def run_audio_to_video(config: str, low_vram: bool) -> bytes:
     """
     Runs the audio-to-video generation process with configurable settings.
     Args:
@@ -23,6 +23,8 @@ def run_audio_to_video(config: str = "lora") -> bytes:
     if config not in config_overrides:
         raise ValueError(f"Unknown config: {config}. Valid configs are: {list(config_overrides.keys())}")
     final_args.update(config_overrides[config])
+    if low_vram:
+        final_args["num_persistent_param_in_dit"] = 0
     
     # Convert to Namespace
     args = argparse.Namespace(**final_args)
