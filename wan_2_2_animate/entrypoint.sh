@@ -8,7 +8,7 @@ MODEL_DIR="/.weights/Wan2.2-Animate-14B"
 # Download the model weights using uv + huggingface-cli
 # This command will only download if the model directory doesn't exist
 echo "Downloading model weights to $MODEL_DIR..."
-uv run huggingface-cli download $MODEL_REPO --local-dir $MODEL_DIR --local-dir-use-symlinks False
+uv run hf download "$MODEL_REPO" --local-dir "$MODEL_DIR"
 
 # Wait for all background downloads to finish
 wait

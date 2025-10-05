@@ -7,10 +7,10 @@ ARG BUILD_ENV=local
 ENV BUILD_ENV=${BUILD_ENV}
 
 # Install Python, pip, git, and other essentials
-RUN apt-get update && apt-get install -y \
-    python3.10 python3-pip git ffmpeg \
-    && rm -rf /var/lib/apt/lists/* \
-    redis-server
+RUN --mount=type=cache,target=/var/cache/apt \
+    apt-get update && apt-get install -y \
+    python3.10 python3-pip git ffmpeg redis-server \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set python3.10 as the default python
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.10 1
@@ -20,21 +20,24 @@ WORKDIR /app
 # Install 'uv' for faster package management
 RUN pip install uv
 
-# Copy project files
-COPY . .
+ENV TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0+PTX"
 
+# Copy project files
+COPY pyproject.toml .
 # Install Python dependencies using uv
 RUN uv sync
 
-# Clone the model's repository
-RUN git clone https://github.com/ali-vilab/wan2.2.git
-
-# Install the model's dependencies
-RUN uv pip install --system --no-cache -r wan2.2/requirements.txt
-
+COPY . .
 # Make the model's code importable by adding it to the PYTHONPATH
+# Clone the model's repository
+RUN git clone https://github.com/facebookresearch/sam2.git && \
+    cd sam2 && \
+    uv pip install -e .
+ENV SAM2_REPO_ROOT="/app/sam2"
+ENV PYTHONPATH="${SAM2_REPO_ROOT}:${PYTHONPATH}"
+RUN git clone https://github.com/Wan-Video/Wan2.2.git
 ENV PYTHONBUFFERED=1
-ENV PYTHONPATH="${PYTHONPATH}:/app/wan2.2"
+ENV PYTHONPATH="${PYTHONPATH}:/app/Wan2.2"
 
 # Make the entrypoint script executable
 RUN chmod +x /app/entrypoint.sh

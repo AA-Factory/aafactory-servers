@@ -1,0 +1,16 @@
+# This is the crucial line to solve your problem
+uv.lock
+
+# It's also best practice to ignore other things
+# to keep the build context small and secure.
+Dockerfile
+.dockerignore
+.git
+.gitignore
+__pycache__/
+*.pyc
+.venv/
+venv/
+.idea/
+.vscode/
+*.ipynb
