@@ -20,7 +20,7 @@ steps:
         TAG="${TAG_NAME#qwen-image-}"
         docker buildx build \
           --platform=linux/amd64 \
-          --tag=elliotcarery/qwen-image-server:$$TAG \
+          --tag=aafactory/qwen-image-server:$$TAG \
           --push \
           -f dockerfile \
           .

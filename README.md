@@ -30,4 +30,4 @@ Each server in this repository is designed to be easily plugged into the AAFacto
 
 ## Deployment
 - push a tag with the name of the server and its version. E.g: zonos-{{version}}
-- this will trigger a build that will be saved in https://hub.docker.com/u/elliotcarery
+- this will trigger a build that will be saved in https://hub.docker.com/u/aafactory
