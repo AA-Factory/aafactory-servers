@@ -32,6 +32,7 @@ COPY . .
 # Clone the model's repository
 RUN git clone https://github.com/facebookresearch/sam2.git && \
     cd sam2 && \
+    git checkout 0e78a118995e66bb27d78518c4bd9a3e95b4e266 && \
     uv pip install -e .
 ENV SAM2_REPO_ROOT="/app/sam2"
 ENV PYTHONPATH="${SAM2_REPO_ROOT}:${PYTHONPATH}"

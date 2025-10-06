@@ -30,7 +30,7 @@ dependencies = [
     "tqdm",
     "dashscope",
     "flash_attn",
-    "onnxruntime-gpu",
+    "onnxruntime-gpu==1.23.0",
     "pandas",
     "matplotlib",
     "sentencepiece",
