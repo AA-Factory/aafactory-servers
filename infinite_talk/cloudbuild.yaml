@@ -20,7 +20,7 @@ steps:
         TAG="${TAG_NAME#infinite-talk-}"
         docker buildx build \
           --platform=linux/amd64 \
-          --tag=elliotcarery/infinite-talk-server:$$TAG \
+          --tag=aafactory/infinite-talk-server:$$TAG \
           --push \
           -f dockerfile \
           .
