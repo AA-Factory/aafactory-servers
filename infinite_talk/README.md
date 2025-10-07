@@ -1,10 +1,11 @@
-# Backend
-
-## Running with Docker Compose
-
+# Running localy
 ```bash
-cd backend
-docker compose up
+docker build -t infinite_talk_server .
+docker run -p 6379:6379 infinite_talk_server
 ```
 
-Based on: https://github.com/runpod-workers/worker-comfyui
+# Remote Hardware requirements
+
+Tested on:
+
+![Infinite Talk Remote Hardware requirements Screenshot](assets/infinite-talk-requirements.png)

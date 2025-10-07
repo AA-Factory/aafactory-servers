@@ -6,6 +6,14 @@ This repository contains the official servers for the AAFactory platform.
 
 Each server in this repository is designed to be easily plugged into the AAFactory tool, enabling flexible and modular usage. These servers are distributed as portable and isolated containers, which means you can run them either locally on your machine or remotely on any compatible infrastructure.
 
+## List of servers
+
+| Server Name           | Runpod Template URL                                                                 | Docker URL                                                      |
+|-----------------------|------------------------------------------------------------------------------------|-----------------------------------------------------------------|
+| zonos-server          | [zonos-template](https://console.runpod.io/deploy?template=43e4ftdqg8&ref=uw67f0zc) | [aafactory/zonos-server](https://hub.docker.com/r/aafactory/zonos-server) |
+| infinite-talk-server  | [infinite-talk-template](https://console.runpod.io/deploy?template=43e4ftdqg8&ref=uw67f0zc) | [aafactory/infinite-talk-server](https://hub.docker.com/r/aafactory/infinite-talk-server) |
+| qwen-image-server     | [qwen-image-template](https://console.runpod.io/deploy?template=hhqwb5m61n&ref=uw67f0zc) | [aafactory/qwen-image-server](https://hub.docker.com/r/aafactory/qwen-image-server) |
+
 ## Architecture & Benefits
 
 - **Portability & Isolation:**  
