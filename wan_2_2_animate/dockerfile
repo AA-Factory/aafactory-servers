@@ -43,5 +43,7 @@ ENV PYTHONPATH="${PYTHONPATH}:/app/Wan2.2"
 # Make the entrypoint script executable
 RUN chmod +x /app/entrypoint.sh
 
+ENV PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128
+
 # Set the entrypoint
 ENTRYPOINT ["/app/entrypoint.sh"]

@@ -181,12 +181,13 @@ def _bytes_pipeline(source_bytes: bytes, driving_bytes: bytes, seed: int, replac
             "--refer_path", src_path,
             "--save_path", preprocess_dir,
             "--resolution_area", "1280", "720",
+            "--fps", "24",
         ]
 
         if replace_flag:
             preprocess_command.extend([
-                "--iterations", "3",
-                "--k", "7",
+                "--iterations", "1",
+                "--k", "3",
                 "--w_len", "1",
                 "--h_len", "1",
                 "--replace_flag",
@@ -213,6 +214,9 @@ def _bytes_pipeline(source_bytes: bytes, driving_bytes: bytes, seed: int, replac
             "--src_root_path", preprocess_dir,
             "--refert_num", "1",
             "--save_file", output_path,
+            "--offload_model", "True",
+            "--t5_cpu", "True",
+            "--convert_model_dtype", "True",
         ]
 
         if replace_flag:
