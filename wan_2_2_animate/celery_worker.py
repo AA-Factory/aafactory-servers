@@ -180,8 +180,8 @@ def _bytes_pipeline(source_bytes: bytes, driving_bytes: bytes, seed: int, replac
             "--video_path", vid_path,
             "--refer_path", src_path,
             "--save_path", preprocess_dir,
-            "--resolution_area", "1280", "720",
-            "--fps", "24",
+            "--resolution_area", "854", "480",
+            "--fps", "15",
         ]
 
         if replace_flag:
@@ -215,8 +215,8 @@ def _bytes_pipeline(source_bytes: bytes, driving_bytes: bytes, seed: int, replac
             "--refert_num", "1",
             "--save_file", output_path,
             "--offload_model", "True",
-            "--t5_cpu", "True",
-            "--convert_model_dtype", "True",
+            "--t5_cpu",
+            "--convert_model_dtype",
         ]
 
         if replace_flag:
