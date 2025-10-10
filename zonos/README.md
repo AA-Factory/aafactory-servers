@@ -8,4 +8,4 @@ docker run -p 6379:6379 zonos_server
 
 Tested on:
 
-![Qwen Image Remote Hardware requirements Screenshot](assets/zonos-requirements.png)
+![Qwen Image Remote Hardware requirements Screenshot](../assets/zonos-requirements.png)
