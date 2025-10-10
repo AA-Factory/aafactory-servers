@@ -1,4 +1,4 @@
-FROM pytorch/pytorch:2.5.1-cuda12.1-cudnn9-devel
+FROM nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04
 
 # Prevent interactive prompts during build
 ENV DEBIAN_FRONTEND=noninteractive
@@ -26,6 +26,7 @@ ENV TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0+PTX"
 COPY pyproject.toml .
 # Install Python dependencies using uv
 RUN uv sync
+RUN uv pip install flash_attn --no-build-isolation
 
 COPY . .
 # Make the model's code importable by adding it to the PYTHONPATH

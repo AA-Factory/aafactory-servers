@@ -14,9 +14,9 @@ dependencies = [
     "accelerate>=1.1.1",
     "opencv-python>=4.9.0.80",
     "numpy>=1.23.5,<2",
-    "torch==2.5.1",
-    "torchvision==0.20.1",
-    "torchaudio==2.5.1",
+    "torch==2.6.0",
+    "torchvision",
+    "torchaudio==2.6.0",
     "easydict",
     "ftfy",
     "einops",
@@ -29,7 +29,6 @@ dependencies = [
     "moviepy",
     "tqdm",
     "dashscope",
-    "flash_attn",
     "onnxruntime-gpu==1.23.0",
     "pandas",
     "matplotlib",
@@ -50,9 +49,6 @@ dependencies = [
     "modelscope",
     "GitPython",
 ]
-
-[tool.uv.extra-build-dependencies]
-flash-attn = ["torch"]
 
 [tool.setuptools]
 packages = ["wan_2_2_animate"]
