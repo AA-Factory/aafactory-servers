@@ -8,4 +8,4 @@ docker run -p 6379:6379 infinite_talk_server
 
 Tested on:
 
-![Infinite Talk Remote Hardware requirements Screenshot](assets/infinite-talk-requirements.png)
+![Infinite Talk Remote Hardware requirements Screenshot](../assets/infinite-talk-requirements.png)
