@@ -6,7 +6,6 @@ import subprocess
 import tempfile
 import base64
 from typing import Tuple, Union
-import torch
 from celery import Celery
 from celery.utils.log import get_task_logger
 
@@ -15,8 +14,6 @@ logger.setLevel("INFO")
 
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = os.getenv("REDIS_PORT", 6379)
-
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 app = Celery(
     "wan_2_2_animate_worker",
@@ -180,8 +177,8 @@ def _bytes_pipeline(source_bytes: bytes, driving_bytes: bytes, seed: int, replac
             "--video_path", vid_path,
             "--refer_path", src_path,
             "--save_path", preprocess_dir,
-            "--resolution_area", "854", "480",
-            "--fps", "15",
+            "--resolution_area", "640", "360",
+            "--fps", "5",
         ]
 
         if replace_flag:
@@ -251,10 +248,3 @@ def _bytes_pipeline(source_bytes: bytes, driving_bytes: bytes, seed: int, replac
                 logger.info(f"Removed preprocess dir: {preprocess_dir}")
             except Exception:
                 logger.warning(f"Could not remove preprocess dir: {preprocess_dir}", exc_info=True)
-
-        if torch.cuda.is_available():
-            try:
-                torch.cuda.empty_cache()
-                logger.info("Cleared CUDA cache.")
-            except Exception:
-                logger.warning("Failed to clear CUDA cache.", exc_info=True)

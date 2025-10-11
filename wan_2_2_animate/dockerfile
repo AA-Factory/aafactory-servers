@@ -53,6 +53,7 @@ RUN uv pip install flash-attn --no-build-isolation
 
 
 COPY . .
+ENV TORCH_CUDA_PREFERRED_LINALG_LIBRARY=cublas
 # Make the entrypoint script executable
 RUN chmod +x /app/entrypoint.sh
 # Set the entrypoint
