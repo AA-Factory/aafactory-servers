@@ -22,29 +22,38 @@ RUN pip install uv
 
 ENV TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0+PTX"
 
+RUN uv venv
+
+COPY . .
+
+ARG SAM2_COMMIT=0e78a118995e66bb27d78518c4bd9a3e95b4e266
+RUN git clone https://github.com/facebookresearch/sam2.git /app/sam2 && \
+    cd /app/sam2 && git checkout ${SAM2_COMMIT}
+RUN cd /app/sam2 && uv pip install -e .
+
+ENV SAM2_REPO_ROOT="/app/sam2"
+ENV PYTHONPATH="${SAM2_REPO_ROOT}:${PYTHONPATH}"
+
+# Cache Wan2.2 repo
+RUN --mount=type=cache,target=/root/.cache/git \
+    git clone --depth 1 https://github.com/Wan-Video/Wan2.2.git
+
+ENV PYTHONBUFFERED=1
+ENV PYTHONPATH="${PYTHONPATH}:/app/Wan2.2"
+
+
+ENV PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128
+
 # Copy project files
 COPY pyproject.toml .
 # Install Python dependencies using uv
 RUN uv sync
-RUN uv pip install flash_attn --no-build-isolation
 
-COPY . .
-# Make the model's code importable by adding it to the PYTHONPATH
-# Clone the model's repository
-RUN git clone https://github.com/facebookresearch/sam2.git && \
-    cd sam2 && \
-    git checkout 0e78a118995e66bb27d78518c4bd9a3e95b4e266 && \
-    uv pip install -e .
-ENV SAM2_REPO_ROOT="/app/sam2"
-ENV PYTHONPATH="${SAM2_REPO_ROOT}:${PYTHONPATH}"
-RUN git clone https://github.com/Wan-Video/Wan2.2.git
-ENV PYTHONBUFFERED=1
-ENV PYTHONPATH="${PYTHONPATH}:/app/Wan2.2"
+RUN uv pip install torchvision --no-build-isolation
+RUN uv pip install torchaudio --no-build-isolation
+RUN uv pip install flash-attn --no-build-isolation
 
 # Make the entrypoint script executable
 RUN chmod +x /app/entrypoint.sh
-
-ENV PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128
-
 # Set the entrypoint
 ENTRYPOINT ["/app/entrypoint.sh"]
