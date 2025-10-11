@@ -24,8 +24,6 @@ ENV TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0+PTX"
 
 RUN uv venv
 
-COPY . .
-
 ARG SAM2_COMMIT=0e78a118995e66bb27d78518c4bd9a3e95b4e266
 RUN git clone https://github.com/facebookresearch/sam2.git /app/sam2 && \
     cd /app/sam2 && git checkout ${SAM2_COMMIT}
@@ -53,6 +51,8 @@ RUN uv pip install torchvision --no-build-isolation
 RUN uv pip install torchaudio --no-build-isolation
 RUN uv pip install flash-attn --no-build-isolation
 
+
+COPY . .
 # Make the entrypoint script executable
 RUN chmod +x /app/entrypoint.sh
 # Set the entrypoint
