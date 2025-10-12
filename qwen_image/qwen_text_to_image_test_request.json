@@ -1,0 +1,10 @@
+{
+  "server_name": "qwen_image",
+  "task_name": "text_to_image",
+  "payload": {
+    "positive_prompt": "cartoon woman with a cap", 
+    "negative_prompt": "low quality", 
+    "image_ratio": "9:16", 
+    "image_quality": "low"
+  }
+}

@@ -134,7 +134,7 @@ def run_image_to_image_edit(image_bytes: str, positive_prompt: str, negative_pro
 
     random_seed = random.randint(0, 999999)
     decoded_image_bytes = base64.b64decode(image_bytes)
-    input_image = Image.open(BytesIO(decoded_image_bytes))
+    input_image = Image.open(BytesIO(decoded_image_bytes)).convert("RGB")
     inputs = {
         "image": input_image,
         "prompt": positive_prompt,
