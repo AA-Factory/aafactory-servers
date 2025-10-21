@@ -17,43 +17,45 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.10 1
 
 WORKDIR /app
 
-# Install 'uv' for faster package management
 RUN pip install uv
 
 ENV TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0+PTX"
 
 RUN uv venv
+RUN uv pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 
-ARG SAM2_COMMIT=0e78a118995e66bb27d78518c4bd9a3e95b4e266
-RUN git clone https://github.com/facebookresearch/sam2.git /app/sam2 && \
-    cd /app/sam2 && git checkout ${SAM2_COMMIT}
-RUN cd /app/sam2 && uv pip install -e .
-
-ENV SAM2_REPO_ROOT="/app/sam2"
-ENV PYTHONPATH="${SAM2_REPO_ROOT}:${PYTHONPATH}"
-
-# Cache Wan2.2 repo
-RUN --mount=type=cache,target=/root/.cache/git \
-    git clone --depth 1 https://github.com/Wan-Video/Wan2.2.git
-
-ENV PYTHONBUFFERED=1
-ENV PYTHONPATH="${PYTHONPATH}:/app/Wan2.2"
-
-
-ENV PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128
-
-# Copy project files
 COPY pyproject.toml .
-# Install Python dependencies using uv
 RUN uv sync
 
-RUN uv pip install torchvision --no-build-isolation
-RUN uv pip install torchaudio --no-build-isolation
-RUN uv pip install flash-attn --no-build-isolation
+# Install Triton+SageAttention2.2
+RUN uv pip install triton && \
+    git clone https://github.com/thu-ml/SageAttention.git && \
+    cd SageAttention && \
+    export EXT_PARALLEL=4 NVCC_APPEND_FLAGS="--threads 8" MAX_JOBS=32 && \
+    uv pip install -e . --no-build-isolation
 
+# Clone ComfyUI repo
+RUN mkdir comfyui_logic
+RUN cd /app/comfyui_logic && git clone https://github.com/comfyanonymous/ComfyUI.git
+# Install all custom nodes
+RUN cd /app/comfyui_logic/ComfyUI/custom_nodes && \
+    git clone https://github.com/evanspearman/ComfyMath.git && \
+    git clone https://github.com/Fannovel16/comfyui_controlnet_aux.git && \
+    git clone https://github.com/pythongosssss/ComfyUI-Custom-Scripts.git && \
+    git clone https://github.com/yolain/ComfyUI-Easy-Use.git && \
+    git clone https://github.com/Fannovel16/ComfyUI-Frame-Interpolation.git && \
+    git clone https://github.com/kijai/ComfyUI-KJNodes.git && \
+    git clone https://github.com/MixLabPro/comfyui-mixlab-nodes.git && \
+    git clone https://github.com/kijai/ComfyUI-segment-anything-2.git && \
+    git clone https://github.com/un-seen/comfyui-tensorops.git && \
+    git clone https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git && \
+    git clone https://github.com/kijai/ComfyUI-WanVideoWrapper.git && \
+    git clone https://github.com/rgthree/rgthree-comfy.git
+
+
+ENV PYTHONBUFFERED=1
 
 COPY . .
-ENV TORCH_CUDA_PREFERRED_LINALG_LIBRARY=cublas
 # Make the entrypoint script executable
 RUN chmod +x /app/entrypoint.sh
 # Set the entrypoint
