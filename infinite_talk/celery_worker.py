@@ -37,5 +37,6 @@ def prompt_image_audio_to_video(prompt: str, image_bytes: str, audio_bytes: str,
     with open("single_example_image.json", "w") as f:
         json.dump(data, f, indent=2)
     result = run_audio_to_video(config=config, low_vram=low_vram)
-    current_app.control.shutdown()
+    # restart worker pool children (graceful), preserves broker/Backend and results
+    current_app.control.broadcast('pool_restart', arguments={'reload': True})
     return result.decode('utf-8')
