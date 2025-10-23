@@ -27,6 +27,10 @@ declare -A MODELS=(
 
 for dest in "${!MODELS[@]}"; do
   url="${MODELS[$dest]}"
+  dir="$(dirname "$dest")"
+  if [ ! -d "$dir" ]; then
+    mkdir -p "$dir"
+  fi
   tmp="${dest}.part"
   echo "Downloading: $(basename "$dest") -> $dest"
   $CURL_BIN --fail --location --continue-at - --retry 5 --retry-delay 5 --output "$tmp" "$url"
