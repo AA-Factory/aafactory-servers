@@ -81,7 +81,13 @@ dependencies = [
     "gguf==0.17.1",
     "sensevoice-onnx @ git+https://github.com/shadowcz007/SenseVoice-python.git",
     "svglib==1.6.0",
+    "celery>=5.5.3",
+    "redis>=6.4.0",
+    "torch",
+    "torchvision",
+    "torchaudio",
 ]
 
-[tool.setuptools]
-packages = ["wan_2_2_animate"]
+extra-index-url = [
+    "https://download.pytorch.org/whl/cu128",
+]

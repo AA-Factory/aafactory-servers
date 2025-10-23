@@ -193,10 +193,10 @@ def _bytes_pipeline(source_bytes: bytes, driving_bytes: bytes, seed: int, replac
         with open(output_file2, "rb") as f:
             out_bytes2 = f.read()
 
-        return out_bytes1, out_bytes2
+        return out_bytes1
 
     except Exception as e:
-        logger.exception("Pipeline failed")
+        logger.exception("Pipeline fail ed")
         raise
 
     finally:
@@ -205,14 +205,6 @@ def _bytes_pipeline(source_bytes: bytes, driving_bytes: bytes, seed: int, replac
             try:
                 if os.path.exists(p):
                     os.remove(p)
-                    logger.info(f"Removed temp file: {p}")
-            except Exception:
-                logger.warning(f"Could not remove temp file: {p}", exc_info=True)
-(p)
-                    logger.info(f"Removed temp file: {p}")
-            except Exception:
-                logger.warning(f"Could not remove temp file: {p}", exc_info=True)
-e(p)
                     logger.info(f"Removed temp file: {p}")
             except Exception:
                 logger.warning(f"Could not remove temp file: {p}", exc_info=True)

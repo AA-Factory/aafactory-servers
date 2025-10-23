@@ -9,7 +9,7 @@ ENV BUILD_ENV=${BUILD_ENV}
 # Install Python, pip, git, and other essentials
 RUN --mount=type=cache,target=/var/cache/apt \
     apt-get update && apt-get install -y \
-    python3.10 python3-pip git ffmpeg redis-server libcairo2-dev pkg-config\
+    python3.10 python3-pip git ffmpeg redis-server libcairo2-dev pkg-config curl\
     && rm -rf /var/lib/apt/lists/*
 
 # Set python3.10 as the default python
@@ -21,11 +21,18 @@ RUN pip install uv
 
 ENV TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0+PTX"
 
-RUN uv venv
-RUN uv pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
+# --- DEPENDENCY INSTALLATION STAGE ---
+# This stage is now fully isolated from application code changes.
 
+# Copy ONLY the dependency definition file
 COPY pyproject.toml .
+
+# Install dependencies. This layer will be cached as long as pyproject.toml doesn't change.
 RUN uv sync
+
+# --- APPLICATION SETUP STAGE ---
+# Now we clone repos and copy application code. Any changes here will only affect
+# subsequent steps, not the dependency installation above.
 
 # Clone ComfyUI repo
 RUN mkdir comfyui_logic
@@ -45,16 +52,16 @@ RUN cd /app/comfyui_logic/ComfyUI/custom_nodes && \
     git clone https://github.com/kijai/ComfyUI-WanVideoWrapper.git && \
     git clone https://github.com/rgthree/rgthree-comfy.git
 
-
+# Copy all application-specific files in one go.
+# If any of these files change, only this layer and subsequent ones are rebuilt.
 COPY comfyui_logic/workflow.py /app/comfyui_logic/workflow.py
 COPY celery_worker.py .
-
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+COPY entrypoint.sh .
 
 ENV PYTHONBUFFERED=1
 
-COPY entrypoint.sh .
 # Make the entrypoint script executable
 RUN chmod +x /app/entrypoint.sh
+
 # Set the entrypoint
 ENTRYPOINT ["/app/entrypoint.sh"]

@@ -1,4 +1,4 @@
-# This is the crucial line to solve your problem
+
 uv.lock
 
 # It's also best practice to ignore other things
@@ -14,3 +14,24 @@ venv/
 .idea/
 .vscode/
 *.ipynb
+# Ignore git history
+.git
+.gitignore
+
+# Ignore Python cache and virtual environments
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Ignore IDE files
+.vscode/
+.idea/
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
+
+# Ignore any logs or temporary files
+*.log
+tmp/
