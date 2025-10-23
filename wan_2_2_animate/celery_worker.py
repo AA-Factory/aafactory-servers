@@ -28,15 +28,21 @@ app.conf.update(
 )
 app.conf.task_queues = {
     'animate': {'exchange': 'animate', 'routing_key': 'animate'},
-    'replace': {'exchange': 'replace', 'routing_key': 'replace'},
 }
 
-WAN_ROOT_DIR = "/app/Wan2.2"
-MODEL_PATH = "/.weights/Wan2.2-Animate-14B"
-PREPROCESS_SCRIPT = os.path.join(WAN_ROOT_DIR, 'wan/modules/animate/preprocess/preprocess_data.py')
-GENERATE_SCRIPT = os.path.join(WAN_ROOT_DIR, 'generate.py')
 TASK_TYPE = "animate-14B"
-
+# path to the generation script (inside the docker container)
+GENERATE_SCRIPT = "/app/comfyui_logic/workflow.py"
+GENERATE_SCRIPT = os.path.abspath(GENERATE_SCRIPT)
+if not os.path.exists(GENERATE_SCRIPT):
+    raise RuntimeError(f"Generate script not found: {GENERATE_SCRIPT}")
+# try to make the script executable (harmless if already executable or failing on restrictive FS)
+if not os.access(GENERATE_SCRIPT, os.X_OK):
+    try:
+        os.chmod(GENERATE_SCRIPT, 0o755)
+    except Exception:
+        logger.warning(f"Could not chmod {GENERATE_SCRIPT}; ensure it is executable if needed.")
+WORKFLOW_ROOT_DIR = "/app/comfyui_logic"
 
 def _run_wan_command(command_args: list, cwd: str, env: dict = None) -> str:
     full_env = os.environ.copy()
@@ -89,13 +95,25 @@ def _guess_ext_from_bytes(data: bytes, default: str = ".bin") -> str:
     return default
 
 
-def _write_bytes_to_tempfile(data: bytes, prefix: str, suggested_ext: str = None) -> str:
-    ext = suggested_ext or _guess_ext_from_bytes(data, default=".bin")
-    with tempfile.NamedTemporaryFile(prefix=f"wan_{prefix}_", suffix=ext, delete=False) as tf:
-        tf.write(data)
-        tf.flush()
-        os.fsync(tf.fileno())
-        return tf.name
+def _write_bytes_to_path(data: bytes, prefix: str, suggested_ext: str = None) -> str:
+    """
+    Write bytes directly to a target path if `prefix` contains a directory component (i.e. looks like a path).
+    Otherwise fall back to creating a NamedTemporaryFile (preserves original behaviour).
+    Returns the path to the written file.
+    """
+    # If prefix looks like a path (has a directory), use it as the target path.
+    target_dir = os.path.dirname(prefix)
+    if target_dir:
+        target = prefix
+        base, ext = os.path.splitext(target)
+        if not ext and suggested_ext:
+            target = base + suggested_ext
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        with open(target, "wb") as f:
+            f.write(data)
+            f.flush()
+            os.fsync(f.fileno())
+        return target
 
 
 def _to_bytes(data: Union[str, bytes], name: str = "data") -> bytes:
@@ -136,19 +154,6 @@ def animate(source_image_b64_or_bytes: Union[str, bytes], driving_video_b64_or_b
     return _bytes_to_b64(out_bytes)
 
 
-@app.task(name="tasks.replace", queue="replace")
-def replace(source_image_b64_or_bytes: Union[str, bytes], driving_video_b64_or_bytes: Union[str, bytes], seed: int = 42) -> str:
-    """
-    Accepts source image and driving video as base64-encoded strings (recommended).
-    For backward/in-process compatibility, raw bytes are also accepted.
-    Returns a base64-encoded string containing the generated output (MP4).
-    """
-    source_bytes = _to_bytes(source_image_b64_or_bytes, "source_image")
-    driving_bytes = _to_bytes(driving_video_b64_or_bytes, "driving_video")
-    out_bytes = _bytes_pipeline(source_bytes, driving_bytes, seed, replace_flag=True)
-    return _bytes_to_b64(out_bytes)
-
-
 def _bytes_pipeline(source_bytes: bytes, driving_bytes: bytes, seed: int, replace_flag: bool) -> bytes:
     """
     Core pipeline: write incoming bytes to temp files, run preprocess + generate, read output bytes, cleanup.
@@ -156,77 +161,39 @@ def _bytes_pipeline(source_bytes: bytes, driving_bytes: bytes, seed: int, replac
     """
     temp_paths = []
     output_path = None
-    preprocess_dir = None
 
     try:
         # 1) Write inputs to temp files
-        src_path = _write_bytes_to_tempfile(source_bytes, prefix="source", suggested_ext=".png")
+        src_path = _write_bytes_to_path(source_bytes, prefix="/app/comfyui_logic/ComfyUI/input/image.jpeg", suggested_ext=".jpeg")
         temp_paths.append(src_path)
-        vid_path = _write_bytes_to_tempfile(driving_bytes, prefix="driving", suggested_ext=".mp4")
+        vid_path = _write_bytes_to_path(driving_bytes, prefix="/app/comfyui_logic/ComfyUI/input/video.mp4", suggested_ext=".mp4")
         temp_paths.append(vid_path)
         logger.info(f"Wrote input bytes to {src_path} and {vid_path}")
 
-        # 2) Preprocess into temporary directory
-        preprocess_dir = tempfile.mkdtemp(prefix="wan_preprocess_")
-        logger.info(f"Created preprocess dir: {preprocess_dir}")
-
-        preprocess_command = [
-            sys.executable,
-            PREPROCESS_SCRIPT,
-            "--ckpt_path", os.path.join(MODEL_PATH, 'process_checkpoint'),
-            "--video_path", vid_path,
-            "--refer_path", src_path,
-            "--save_path", preprocess_dir,
-            "--resolution_area", "640", "360",
-            "--fps", "5",
-        ]
-
-        if replace_flag:
-            preprocess_command.extend([
-                "--iterations", "1",
-                "--k", "3",
-                "--w_len", "1",
-                "--h_len", "1",
-                "--replace_flag",
-            ])
-        else:
-            preprocess_command.extend(["--retarget_flag"])
-
-        _run_wan_command(preprocess_command, cwd=WAN_ROOT_DIR)
-        logger.info("Preprocessing finished.")
-
-        # 3) Prepare output tempfile (we will read and then delete it)
-        out_tmp = tempfile.NamedTemporaryFile(prefix="wan_output_", suffix=".mp4", delete=False)
-        output_path = out_tmp.name
-        out_tmp.close()
-        temp_paths.append(output_path)  # treat output as temp to remove later (after reading)
+        output_path = "/app/comfyui_logic/ComfyUI/output/"
+        output_file1 = os.path.join(output_path, "Wanimate_00001-audio.mp4")
+        output_file2 = os.path.join(output_path, "Wanimate_Interpolated_00001.mp4")
+        
+        temp_paths.append(output_file1)  # treat output as temp to remove later (after reading)
+        temp_paths.append(output_file2)  # treat output as temp to remove later (after reading)
         logger.info(f"Will write generated output to: {output_path}")
 
         # 4) Generation command
         generate_command = [
             sys.executable,
-            GENERATE_SCRIPT,
-            "--task", TASK_TYPE,
-            "--ckpt_dir", MODEL_PATH,
-            "--src_root_path", preprocess_dir,
-            "--refert_num", "1",
-            "--save_file", output_path,
-            "--offload_model", "True",
-            "--t5_cpu",
-            "--convert_model_dtype",
+            GENERATE_SCRIPT
         ]
 
-        if replace_flag:
-            generate_command.extend(["--replace_flag", "--use_relighting_lora"])
-
-        _run_wan_command(generate_command, cwd=WAN_ROOT_DIR)
+        _run_wan_command(generate_command, cwd=WORKFLOW_ROOT_DIR)
         logger.info("Generation finished.")
 
         # 5) Read output file into bytes and return
-        with open(output_path, "rb") as f:
-            out_bytes = f.read()
+        with open(output_file1, "rb") as f:
+            out_bytes1 = f.read()
+        with open(output_file2, "rb") as f:
+            out_bytes2 = f.read()
 
-        return out_bytes
+        return out_bytes1, out_bytes2
 
     except Exception as e:
         logger.exception("Pipeline failed")
@@ -241,10 +208,11 @@ def _bytes_pipeline(source_bytes: bytes, driving_bytes: bytes, seed: int, replac
                     logger.info(f"Removed temp file: {p}")
             except Exception:
                 logger.warning(f"Could not remove temp file: {p}", exc_info=True)
-
-        if preprocess_dir and os.path.exists(preprocess_dir):
-            try:
-                shutil.rmtree(preprocess_dir)
-                logger.info(f"Removed preprocess dir: {preprocess_dir}")
+(p)
+                    logger.info(f"Removed temp file: {p}")
             except Exception:
-                logger.warning(f"Could not remove preprocess dir: {preprocess_dir}", exc_info=True)
+                logger.warning(f"Could not remove temp file: {p}", exc_info=True)
+e(p)
+                    logger.info(f"Removed temp file: {p}")
+            except Exception:
+                logger.warning(f"Could not remove temp file: {p}", exc_info=True)

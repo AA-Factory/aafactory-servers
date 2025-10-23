@@ -1,15 +1,23 @@
 #!/bin/bash
 set -euo pipefail
 
+uv pip install wheel
+# --- Install SageAttention ----
+if [ ! -d "SageAttention" ]; then
+    git clone https://github.com/thu-ml/SageAttention.git
+    cd SageAttention
+    uv pip install -e . --no-build-isolation
+    cd ..
+fi
+
 # ---- ComfyUI model downloader ----
-# Assumes all target folders already exist under /app/comfyui_logic/ComfyUI/models
 BASE_DIR="/app/comfyui_logic/ComfyUI/models"
 CURL_BIN="${CURL_BIN:-curl}"
 
 declare -A MODELS=(
   ["$BASE_DIR/clip/umt5_xxl_fp8_e4m3fn_scaled.safetensors"]="https://huggingface.co/chatpig/encoder/resolve/main/umt5_xxl_fp8_e4m3fn_scaled.safetensors"
   ["$BASE_DIR/clip_vision/clip_vision_h.safetensors"]="https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/clip_vision/clip_vision_h.safetensors"
-  ["$BASE_DIR/diffusion_models/Wan2_2-Animate-14B_fp8_e4m3fn_scaled_KJ.safetensors"]="https://huggingface.co/Kijai/WanVideo_comfy_fp8_scaled/blob/main/Wan22Animate/Wan2_2-Animate-14B_fp8_e4m3fn_scaled_KJ.safetensors"
+  ["$BASE_DIR/diffusion_models/Wan2_2-Animate-14B_fp8_e4m3fn_scaled_KJ.safetensors"]="https://huggingface.co/Kijai/WanVideo_comfy_fp8_scaled/resolve/main/Wan22Animate/Wan2_2-Animate-14B_fp8_e4m3fn_scaled_KJ.safetensors"
   ["$BASE_DIR/loras/lightx2v_I2V_14B_480p_cfg_step_distill_rank64_bf16.safetensors"]="https://huggingface.co/Kijai/WanVideo_comfy/resolve/main/Lightx2v/lightx2v_I2V_14B_480p_cfg_step_distill_rank64_bf16.safetensors"
   ["$BASE_DIR/loras/WanAnimate_relight_lora_fp16.safetensors"]="https://huggingface.co/Kijai/WanVideo_comfy/resolve/main/LoRAs/Wan22_relight/WanAnimate_relight_lora_fp16.safetensors"
   ["$BASE_DIR/sam2/sam2_hiera_base_plus.safetensors"]="https://huggingface.co/Kijai/sam2-safetensors/resolve/main/sam2_hiera_base_plus.safetensors"
@@ -21,17 +29,11 @@ for dest in "${!MODELS[@]}"; do
   url="${MODELS[$dest]}"
   tmp="${dest}.part"
   echo "Downloading: $(basename "$dest") -> $dest"
-  # follow redirects, retry, write to a temp file then atomically move into place
-  "$CURL_BIN" --fail --location --continue-at - --retry 5 --retry-delay 5 --output "$tmp" "$url"
+  $CURL_BIN --fail --location --continue-at - --retry 5 --retry-delay 5 --output "$tmp" "$url"
   mv -f "$tmp" "$dest"
   chmod 644 "$dest" || true
 done
-# ---- end models download ----
-
 
 echo "Model weights downloaded. Starting Celery worker..."
-
-# Start redis-server in the background
-echo "Starting Celery worker listening on queues: animate, replace"
 redis-server --protected-mode no &
-uv run celery -A celery_worker.app worker --loglevel=info -Q animate,replace
+uv run celery -A celery_worker.app worker --loglevel=info -Q animate

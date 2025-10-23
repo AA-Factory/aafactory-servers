@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04
+FROM nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04
 
 # Prevent interactive prompts during build
 ENV DEBIAN_FRONTEND=noninteractive
@@ -9,7 +9,7 @@ ENV BUILD_ENV=${BUILD_ENV}
 # Install Python, pip, git, and other essentials
 RUN --mount=type=cache,target=/var/cache/apt \
     apt-get update && apt-get install -y \
-    python3.10 python3-pip git ffmpeg redis-server \
+    python3.10 python3-pip git ffmpeg redis-server libcairo2-dev pkg-config\
     && rm -rf /var/lib/apt/lists/*
 
 # Set python3.10 as the default python
@@ -22,17 +22,10 @@ RUN pip install uv
 ENV TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0+PTX"
 
 RUN uv venv
-RUN uv pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+RUN uv pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
 
 COPY pyproject.toml .
 RUN uv sync
-
-# Install Triton+SageAttention2.2
-RUN uv pip install triton && \
-    git clone https://github.com/thu-ml/SageAttention.git && \
-    cd SageAttention && \
-    export EXT_PARALLEL=4 NVCC_APPEND_FLAGS="--threads 8" MAX_JOBS=32 && \
-    uv pip install -e . --no-build-isolation
 
 # Clone ComfyUI repo
 RUN mkdir comfyui_logic
@@ -53,9 +46,14 @@ RUN cd /app/comfyui_logic/ComfyUI/custom_nodes && \
     git clone https://github.com/rgthree/rgthree-comfy.git
 
 
+COPY comfyui_logic/workflow.py /app/comfyui_logic/workflow.py
+COPY celery_worker.py .
+
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
 ENV PYTHONBUFFERED=1
 
-COPY . .
+COPY entrypoint.sh .
 # Make the entrypoint script executable
 RUN chmod +x /app/entrypoint.sh
 # Set the entrypoint
