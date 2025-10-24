@@ -21,13 +21,8 @@ RUN pip install uv
 
 ENV TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0+PTX"
 
-# --- DEPENDENCY INSTALLATION STAGE ---
-# This stage is now fully isolated from application code changes.
-
-# Copy ONLY the dependency definition file
-COPY pyproject.toml .
-
-# Install dependencies. This layer will be cached as long as pyproject.toml doesn't change.
+RUN uv venv
+COPY pyproject.toml /app/pyproject.toml
 RUN uv sync
 
 # --- APPLICATION SETUP STAGE ---

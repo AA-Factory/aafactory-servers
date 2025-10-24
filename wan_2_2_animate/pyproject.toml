@@ -83,11 +83,14 @@ dependencies = [
     "svglib==1.6.0",
     "celery>=5.5.3",
     "redis>=6.4.0",
-    "torch",
-    "torchvision",
-    "torchaudio",
+    "torch==2.9.0",
+    "torchvision==0.24.0",
+    "torchaudio==2.9.0",
 ]
 
 extra-index-url = [
     "https://download.pytorch.org/whl/cu128",
 ]
+
+[tool.setuptools]
+packages = ["wan_2_2_animate"]
