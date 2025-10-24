@@ -30,9 +30,11 @@ RUN uv sync
 # subsequent steps, not the dependency installation above.
 
 # Clone ComfyUI repo
-RUN mkdir comfyui_logic
-RUN cd /app/comfyui_logic && git clone https://github.com/comfyanonymous/ComfyUI.git
-# Install all custom nodes
+RUN mkdir -p /app/comfyui_logic
+RUN cd /app/comfyui_logic && git clone https://github.com/comfyanonymous/ComfyUI.git && \
+    git -C /app/comfyui_logic/ComfyUI checkout 388b306a2b48070737b092b51e76de933baee9ad
+
+# Install all custom nodes (clone)
 RUN cd /app/comfyui_logic/ComfyUI/custom_nodes && \
     git clone https://github.com/evanspearman/ComfyMath.git && \
     git clone https://github.com/Fannovel16/comfyui_controlnet_aux.git && \
@@ -46,14 +48,20 @@ RUN cd /app/comfyui_logic/ComfyUI/custom_nodes && \
     git clone https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git && \
     git clone https://github.com/kijai/ComfyUI-WanVideoWrapper.git && \
     git clone https://github.com/rgthree/rgthree-comfy.git
+# Pin each cloned repo to the specific commit
+RUN git -C /app/comfyui_logic/ComfyUI/custom_nodes/ComfyMath checkout c01177221c31b8e5fbc062778fc8254aeb541638 && \
+    git -C /app/comfyui_logic/ComfyUI/custom_nodes/ComfyUI-Custom-Scripts checkout f2838ed5e59de4d73cde5c98354b87a8d3200190 && \
+    git -C /app/comfyui_logic/ComfyUI/custom_nodes/ComfyUI-Easy-Use checkout 125b3a4905ac9367f7aae5c2df67e2282f0a3d37 && \
+    git -C /app/comfyui_logic/ComfyUI/custom_nodes/ComfyUI-Frame-Interpolation checkout a969c01dbccd9e5510641be04eb51fe93f6bfc3d && \
+    git -C /app/comfyui_logic/ComfyUI/custom_nodes/ComfyUI-KJNodes checkout 6ee278aa7d802c03ad713a7c5fbc02861b6773a8 && \
+    git -C /app/comfyui_logic/ComfyUI/custom_nodes/ComfyUI-VideoHelperSuite checkout 6e7f63867584bb1fb4944d36172e7f98436da9a1 && \
+    git -C /app/comfyui_logic/ComfyUI/custom_nodes/ComfyUI-WanVideoWrapper checkout d74cfc54e8ae065d7f32b36634be770bae525f5c && \
+    git -C /app/comfyui_logic/ComfyUI/custom_nodes/ComfyUI-segment-anything-2 checkout 0c35fff5f382803e2310103357b5e985f5437f32 && \
+    git -C /app/comfyui_logic/ComfyUI/custom_nodes/comfyui-mixlab-nodes checkout 32b22c39cbe13b46df29ef1b6ab088c2eb4389d2 && \
+    git -C /app/comfyui_logic/ComfyUI/custom_nodes/comfyui-tensorops checkout d34488e3079ecd10db2fe867c3a7af568115faed && \
+    git -C /app/comfyui_logic/ComfyUI/custom_nodes/comfyui_controlnet_aux checkout 12f35647f0d510e03b45a47fb420fe1245a575df && \
+    git -C /app/comfyui_logic/ComfyUI/custom_nodes/rgthree-comfy checkout 2b9eb36d3e1741e88dbfccade0e08137f7fa2bfb
 
-# Copy all application-specific files in one go.
-# If any of these files change, only this layer and subsequent ones are rebuilt.
-COPY comfyui_logic/workflow.py /app/comfyui_logic/workflow.py
-COPY celery_worker.py .
-COPY entrypoint.sh .
-
-ENV PYTHONBUFFERED=1
 
 # Avoid compiling sm90 kernels for sm_120; build fat binary safely
 ENV SAGE_ATTENTION_ARCHS="8.0+PTX;8.6+PTX;8.9+PTX;9.0+PTX;12.0+PTX" \
@@ -62,7 +70,9 @@ ENV SAGE_ATTENTION_ARCHS="8.0+PTX;8.6+PTX;8.9+PTX;9.0+PTX;12.0+PTX" \
     LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH} \
     FORCE_CUDA=1
 
-RUN test -d SageAttention || git clone https://github.com/thu-ml/SageAttention.git
+RUN test -d SageAttention || git clone https://github.com/thu-ml/SageAttention.git && \
+    git -C SageAttention checkout 22c68fb5e561b66c0a816eb27f46299b3d2cc8af
+
 
 # Patch setup.py: read env archs; use per-extension gencodes (sm80:80/86, sm89:89, sm90:90/90a, fused:80/86/89/90/90a/120)
 RUN /app/.venv/bin/python - <<'PY'
@@ -135,6 +145,13 @@ PY
 RUN uv pip install -p /app/.venv/bin/python -U setuptools wheel
 RUN cd SageAttention && /app/.venv/bin/python setup.py install
     
+# Copy all application-specific files in one go.
+# If any of these files change, only this layer and subsequent ones are rebuilt.
+COPY comfyui_logic/workflow.py /app/comfyui_logic/workflow.py
+COPY celery_worker.py .
+COPY entrypoint.sh .
+
+ENV PYTHONBUFFERED=1
 # Make the entrypoint script executable
 RUN chmod +x /app/entrypoint.sh
 

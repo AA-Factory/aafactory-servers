@@ -22,12 +22,12 @@ app = Celery(
 )
 # Use JSON serializer and encode binary inputs/outputs with base64 so messages are safe and JSON-serializable.
 app.conf.update(
-    task_serializer='json',
-    result_serializer='json',
-    accept_content=['json'],  # only accept JSON-serialized tasks/results
+    task_serializer="json",
+    result_serializer="json",
+    accept_content=["json"],  # only accept JSON-serialized tasks/results
 )
 app.conf.task_queues = {
-    'animate': {'exchange': 'animate', 'routing_key': 'animate'},
+    "animate": {"exchange": "animate", "routing_key": "animate"},
 }
 
 TASK_TYPE = "animate-14B"
@@ -41,8 +41,11 @@ if not os.access(GENERATE_SCRIPT, os.X_OK):
     try:
         os.chmod(GENERATE_SCRIPT, 0o755)
     except Exception:
-        logger.warning(f"Could not chmod {GENERATE_SCRIPT}; ensure it is executable if needed.")
+        logger.warning(
+            f"Could not chmod {GENERATE_SCRIPT}; ensure it is executable if needed."
+        )
 WORKFLOW_ROOT_DIR = "/app/comfyui_logic"
+
 
 def _run_wan_command(command_args: list, cwd: str, env: dict = None) -> str:
     full_env = os.environ.copy()
@@ -65,7 +68,9 @@ def _run_wan_command(command_args: list, cwd: str, env: dict = None) -> str:
             logger.warning(res.stderr)
         return res.stdout
     except subprocess.CalledProcessError as e:
-        logger.error(f"Command failed: returncode={e.returncode}. stdout={e.stdout} stderr={e.stderr}")
+        logger.error(
+            f"Command failed: returncode={e.returncode}. stdout={e.stdout} stderr={e.stderr}"
+        )
         raise RuntimeError(f"Wan2.2 command failed: {e.stderr or e.stdout}")
     except FileNotFoundError:
         logger.error("Executable or script not found.")
@@ -78,19 +83,19 @@ def _run_wan_command(command_args: list, cwd: str, env: dict = None) -> str:
 def _guess_ext_from_bytes(data: bytes, default: str = ".bin") -> str:
     if not data or len(data) < 12:
         return default
-    if data.startswith(b'\x89PNG\r\n\x1a\n'):
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
         return ".png"
-    if data.startswith(b'\xff\xd8'):
+    if data.startswith(b"\xff\xd8"):
         return ".jpg"
-    if data.startswith(b'GIF8'):
+    if data.startswith(b"GIF8"):
         return ".gif"
-    if data[0:4] == b'RIFF' and b'WEBP' in data[8:16]:
+    if data[0:4] == b"RIFF" and b"WEBP" in data[8:16]:
         return ".webp"
-    if b'ftyp' in data[4:12]:
+    if b"ftyp" in data[4:12]:
         return ".mp4"
-    if data.startswith(b'\x1A\x45\xDF\xA3'):
+    if data.startswith(b"\x1a\x45\xdf\xa3"):
         return ".mkv"
-    if data[0:4] == b'RIFF' and data[8:12] == b'AVI ':
+    if data[0:4] == b"RIFF" and data[8:12] == b"AVI ":
         return ".avi"
     return default
 
@@ -142,7 +147,11 @@ def _bytes_to_b64(data: bytes) -> str:
 
 
 @app.task(name="tasks.animate", queue="animate")
-def animate(source_image_b64_or_bytes: Union[str, bytes], driving_video_b64_or_bytes: Union[str, bytes], seed: int = 42) -> str:
+def animate(
+    source_image_b64_or_bytes: Union[str, bytes],
+    driving_video_b64_or_bytes: Union[str, bytes],
+    seed: int = 42,
+) -> dict:
     """
     Accepts source image and driving video as base64-encoded strings (recommended).
     For backward/in-process compatibility, raw bytes are also accepted.
@@ -150,11 +159,18 @@ def animate(source_image_b64_or_bytes: Union[str, bytes], driving_video_b64_or_b
     """
     source_bytes = _to_bytes(source_image_b64_or_bytes, "source_image")
     driving_bytes = _to_bytes(driving_video_b64_or_bytes, "driving_video")
-    out_bytes = _bytes_pipeline(source_bytes, driving_bytes, seed, replace_flag=False)
-    return _bytes_to_b64(out_bytes)
+    video_with_audio_bytes, interpolated_video_bytes = _bytes_pipeline(
+        source_bytes, driving_bytes, seed, replace_flag=False
+    )
+    return {
+        "video_with_audio": _bytes_to_b64(video_with_audio_bytes),
+        "interpolated_video": _bytes_to_b64(interpolated_video_bytes),
+    }
 
 
-def _bytes_pipeline(source_bytes: bytes, driving_bytes: bytes, seed: int, replace_flag: bool) -> bytes:
+def _bytes_pipeline(
+    source_bytes: bytes, driving_bytes: bytes, seed: int, replace_flag: bool
+) -> tuple[bytes, bytes]:
     """
     Core pipeline: write incoming bytes to temp files, run preprocess + generate, read output bytes, cleanup.
     Always returns bytes of the created output file.
@@ -164,36 +180,47 @@ def _bytes_pipeline(source_bytes: bytes, driving_bytes: bytes, seed: int, replac
 
     try:
         # 1) Write inputs to temp files
-        src_path = _write_bytes_to_path(source_bytes, prefix="/app/comfyui_logic/ComfyUI/input/image.jpeg", suggested_ext=".jpeg")
+        src_path = _write_bytes_to_path(
+            source_bytes,
+            prefix="/app/comfyui_logic/ComfyUI/input/image.jpeg",
+            suggested_ext=".jpeg",
+        )
         temp_paths.append(src_path)
-        vid_path = _write_bytes_to_path(driving_bytes, prefix="/app/comfyui_logic/ComfyUI/input/video.mp4", suggested_ext=".mp4")
+        vid_path = _write_bytes_to_path(
+            driving_bytes,
+            prefix="/app/comfyui_logic/ComfyUI/input/video.mp4",
+            suggested_ext=".mp4",
+        )
         temp_paths.append(vid_path)
         logger.info(f"Wrote input bytes to {src_path} and {vid_path}")
 
         output_path = "/app/comfyui_logic/ComfyUI/output/"
-        output_file1 = os.path.join(output_path, "Wanimate_00001-audio.mp4")
-        output_file2 = os.path.join(output_path, "Wanimate_Interpolated_00001.mp4")
-        
-        temp_paths.append(output_file1)  # treat output as temp to remove later (after reading)
-        temp_paths.append(output_file2)  # treat output as temp to remove later (after reading)
+        video_with_audio = os.path.join(output_path, "Wanimate_00001-audio.mp4")
+        interpolated_video = os.path.join(
+            output_path, "Wanimate_Interpolated_00001.mp4"
+        )
+
+        temp_paths.append(
+            video_with_audio
+        )  # treat output as temp to remove later (after reading)
+        temp_paths.append(
+            interpolated_video
+        )  # treat output as temp to remove later (after reading)
         logger.info(f"Will write generated output to: {output_path}")
 
         # 4) Generation command
-        generate_command = [
-            sys.executable,
-            GENERATE_SCRIPT
-        ]
+        generate_command = [sys.executable, GENERATE_SCRIPT]
 
         _run_wan_command(generate_command, cwd=WORKFLOW_ROOT_DIR)
         logger.info("Generation finished.")
 
         # 5) Read output file into bytes and return
-        with open(output_file1, "rb") as f:
-            out_bytes1 = f.read()
-        with open(output_file2, "rb") as f:
-            out_bytes2 = f.read()
+        with open(video_with_audio, "rb") as f:
+            video_with_audio_bytes = f.read()
+        with open(interpolated_video, "rb") as f:
+            interpolated_video_bytes = f.read()
 
-        return out_bytes1
+        return video_with_audio_bytes, interpolated_video_bytes
 
     except Exception as e:
         logger.exception("Pipeline fail ed")
