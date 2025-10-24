@@ -1,14 +1,14 @@
 #!/bin/bash
 set -euo pipefail
 
-uv pip install wheel
-# --- Install SageAttention ----
-if [ ! -d "SageAttention" ]; then
-    git clone https://github.com/thu-ml/SageAttention.git
-    cd SageAttention
-    uv pip install -e . --no-build-isolation
-    cd ..
-fi
+# uv pip install wheel
+# # --- Install SageAttention ----
+# if [ ! -d "SageAttention" ]; then
+#     git clone https://github.com/thu-ml/SageAttention.git
+#     cd SageAttention
+#     uv pip install -e . --no-build-isolation
+#     cd ..
+# fi
 
 # ---- ComfyUI model downloader ----
 BASE_DIR="/app/comfyui_logic/ComfyUI/models"
