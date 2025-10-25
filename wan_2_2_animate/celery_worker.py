@@ -1,11 +1,8 @@
 import os
 import sys
-import uuid
 import shutil
 import subprocess
-import tempfile
 import base64
-from typing import Tuple, Union
 from celery import Celery
 from celery.utils.log import get_task_logger
 
@@ -29,8 +26,16 @@ app.conf.update(
 app.conf.task_queues = {
     "animate": {"exchange": "animate", "routing_key": "animate"},
 }
+app.conf.broker_transport_options = {
+    "socket_keepalive": True,
+    "socket_timeout": 30,        # seconds for socket ops
+    "socket_connect_timeout": 10,
+}
+app.conf.result_backend_transport_options = {
+    "socket_keepalive": True,
+    "socket_timeout": 30,
+}
 
-TASK_TYPE = "animate-14B"
 # path to the generation script (inside the docker container)
 GENERATE_SCRIPT = "/app/comfyui_logic/workflow.py"
 GENERATE_SCRIPT = os.path.abspath(GENERATE_SCRIPT)
@@ -45,6 +50,100 @@ if not os.access(GENERATE_SCRIPT, os.X_OK):
             f"Could not chmod {GENERATE_SCRIPT}; ensure it is executable if needed."
         )
 WORKFLOW_ROOT_DIR = "/app/comfyui_logic"
+INPUT_PATH = "/app/comfyui_logic/ComfyUI/input/"
+OUTPUT_PATH = "/app/comfyui_logic/ComfyUI/output/"
+# Define paths for input files
+IMAGE_PATH = os.path.join(INPUT_PATH, "image.jpeg")
+VIDEO_PATH = os.path.join(INPUT_PATH, "video.mp4")
+# Define which videos we want to read after generation
+VIDEO_WITH_AUDIO_PATH = os.path.join(OUTPUT_PATH, "Wanimate_00001-audio.mp4")
+INTERPOLATED_VIDEO_PATH = os.path.join(OUTPUT_PATH, "Wanimate_Interpolated_00001.mp4")
+
+
+@app.task(name="tasks.animate", queue="animate")
+def animate(image_b64: str, video_b64: str) -> dict:
+    """
+    Accepts image and video as base64-encoded strings.
+    Returns dictionary with a base64-encoded strings containing the generated output (MP4).
+    """
+    image_bytes = _b64_to_bytes(image_b64)
+    video_bytes = _b64_to_bytes(video_b64)
+    video_with_audio_bytes, interpolated_video_bytes = _run_pipeline(
+        image_bytes, video_bytes
+    )
+    return {
+        "video_with_audio": _bytes_to_b64(video_with_audio_bytes),
+        "interpolated_video": _bytes_to_b64(interpolated_video_bytes),
+    }
+
+
+def _b64_to_bytes(data: str) -> bytes:
+    return base64.b64decode(data)
+
+
+def _bytes_to_b64(data: bytes) -> str:
+    return base64.b64encode(data).decode("ascii")
+
+
+def _run_pipeline(image_bytes: bytes, video_bytes: bytes) -> tuple[bytes, bytes]:
+    """
+    Core pipeline: write incoming bytes to files, run generate, read output bytes.
+    Always returns bytes of the created output files.
+    """
+
+    try:
+        _cleanup_old_inputs_outputs()
+        # 2) Write inputs to input folder
+        _write_bytes_to_path(image_bytes, path=IMAGE_PATH)
+        _write_bytes_to_path(video_bytes, path=VIDEO_PATH)
+        logger.info(f"Wrote input bytes to {IMAGE_PATH} and {VIDEO_PATH}")
+        logger.info(f"Will write generated output to: {OUTPUT_PATH}")
+
+        # 2) Generation command
+        generate_command = [sys.executable, GENERATE_SCRIPT]
+        _run_wan_command(generate_command, cwd=WORKFLOW_ROOT_DIR)
+        logger.info("Generation finished.")
+
+        # 3) Read output file into bytes and return
+        with open(VIDEO_WITH_AUDIO_PATH, "rb") as f:
+            video_with_audio_bytes = f.read()
+        with open(INTERPOLATED_VIDEO_PATH, "rb") as f:
+            interpolated_video_bytes = f.read()
+
+        return video_with_audio_bytes, interpolated_video_bytes
+
+    except Exception as e:
+        logger.exception("Pipeline fail ed")
+        raise RuntimeError(f"Pipeline failed: {e}")
+
+
+def _cleanup_old_inputs_outputs():
+    """Cleans up old input and output files to avoid interference."""
+
+    for folder in [INPUT_PATH, OUTPUT_PATH]:
+        # Remove every entry inside the folder but keep the folder itself.
+        for name in os.listdir(folder):
+            path = os.path.join(folder, name)
+            try:
+                # If it's a file or symlink, remove it; if it's a directory, rmtree it.
+                if os.path.islink(path) or os.path.isfile(path):
+                    os.remove(path)
+                elif os.path.isdir(path):
+                    shutil.rmtree(path)
+                else:
+                    # Unknown file type: try removing as file.
+                    os.remove(path)
+                logger.info(f"Removed: {path}")
+            except Exception:
+                logger.warning(f"Could not remove: {path}", exc_info=True)
+
+
+def _write_bytes_to_path(data: bytes, path: str) -> None:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "wb") as f:
+        f.write(data)
+        f.flush()
+        os.fsync(f.fileno())
 
 
 def _run_wan_command(command_args: list, cwd: str, env: dict = None) -> str:
@@ -78,160 +177,3 @@ def _run_wan_command(command_args: list, cwd: str, env: dict = None) -> str:
     except Exception as e:
         logger.exception("Unexpected error running command")
         raise RuntimeError(f"Unexpected error: {e}")
-
-
-def _guess_ext_from_bytes(data: bytes, default: str = ".bin") -> str:
-    if not data or len(data) < 12:
-        return default
-    if data.startswith(b"\x89PNG\r\n\x1a\n"):
-        return ".png"
-    if data.startswith(b"\xff\xd8"):
-        return ".jpg"
-    if data.startswith(b"GIF8"):
-        return ".gif"
-    if data[0:4] == b"RIFF" and b"WEBP" in data[8:16]:
-        return ".webp"
-    if b"ftyp" in data[4:12]:
-        return ".mp4"
-    if data.startswith(b"\x1a\x45\xdf\xa3"):
-        return ".mkv"
-    if data[0:4] == b"RIFF" and data[8:12] == b"AVI ":
-        return ".avi"
-    return default
-
-
-def _write_bytes_to_path(data: bytes, prefix: str, suggested_ext: str = None) -> str:
-    """
-    Write bytes directly to a target path if `prefix` contains a directory component (i.e. looks like a path).
-    Otherwise fall back to creating a NamedTemporaryFile (preserves original behaviour).
-    Returns the path to the written file.
-    """
-    # If prefix looks like a path (has a directory), use it as the target path.
-    target_dir = os.path.dirname(prefix)
-    if target_dir:
-        target = prefix
-        base, ext = os.path.splitext(target)
-        if not ext and suggested_ext:
-            target = base + suggested_ext
-        os.makedirs(os.path.dirname(target), exist_ok=True)
-        with open(target, "wb") as f:
-            f.write(data)
-            f.flush()
-            os.fsync(f.fileno())
-        return target
-
-
-def _to_bytes(data: Union[str, bytes], name: str = "data") -> bytes:
-    """
-    Ensure the given input is bytes.
-    - If it's bytes, return as-is (helps in-process/backwards compatibility).
-    - If it's str, treat it as base64 and decode to bytes.
-    Raises:
-        TypeError if input is neither bytes nor str.
-        ValueError if base64 decoding fails.
-    """
-    if isinstance(data, bytes):
-        return data
-    if isinstance(data, str):
-        try:
-            return base64.b64decode(data)
-        except Exception as e:
-            logger.error(f"Failed to base64-decode {name}: {e}")
-            raise ValueError(f"Invalid base64 for {name}: {e}")
-    raise TypeError(f"{name} must be bytes or base64-encoded string")
-
-
-def _bytes_to_b64(data: bytes) -> str:
-    """Encode bytes to base64 string for JSON-safe transport."""
-    return base64.b64encode(data).decode("ascii")
-
-
-@app.task(name="tasks.animate", queue="animate")
-def animate(
-    source_image_b64_or_bytes: Union[str, bytes],
-    driving_video_b64_or_bytes: Union[str, bytes],
-    seed: int = 42,
-) -> dict:
-    """
-    Accepts source image and driving video as base64-encoded strings (recommended).
-    For backward/in-process compatibility, raw bytes are also accepted.
-    Returns a base64-encoded string containing the generated output (MP4).
-    """
-    source_bytes = _to_bytes(source_image_b64_or_bytes, "source_image")
-    driving_bytes = _to_bytes(driving_video_b64_or_bytes, "driving_video")
-    video_with_audio_bytes, interpolated_video_bytes = _bytes_pipeline(
-        source_bytes, driving_bytes, seed, replace_flag=False
-    )
-    return {
-        "video_with_audio": _bytes_to_b64(video_with_audio_bytes),
-        "interpolated_video": _bytes_to_b64(interpolated_video_bytes),
-    }
-
-
-def _bytes_pipeline(
-    source_bytes: bytes, driving_bytes: bytes, seed: int, replace_flag: bool
-) -> tuple[bytes, bytes]:
-    """
-    Core pipeline: write incoming bytes to temp files, run preprocess + generate, read output bytes, cleanup.
-    Always returns bytes of the created output file.
-    """
-    temp_paths = []
-    output_path = None
-
-    try:
-        # 1) Write inputs to temp files
-        src_path = _write_bytes_to_path(
-            source_bytes,
-            prefix="/app/comfyui_logic/ComfyUI/input/image.jpeg",
-            suggested_ext=".jpeg",
-        )
-        temp_paths.append(src_path)
-        vid_path = _write_bytes_to_path(
-            driving_bytes,
-            prefix="/app/comfyui_logic/ComfyUI/input/video.mp4",
-            suggested_ext=".mp4",
-        )
-        temp_paths.append(vid_path)
-        logger.info(f"Wrote input bytes to {src_path} and {vid_path}")
-
-        output_path = "/app/comfyui_logic/ComfyUI/output/"
-        video_with_audio = os.path.join(output_path, "Wanimate_00001-audio.mp4")
-        interpolated_video = os.path.join(
-            output_path, "Wanimate_Interpolated_00001.mp4"
-        )
-
-        temp_paths.append(
-            video_with_audio
-        )  # treat output as temp to remove later (after reading)
-        temp_paths.append(
-            interpolated_video
-        )  # treat output as temp to remove later (after reading)
-        logger.info(f"Will write generated output to: {output_path}")
-
-        # 4) Generation command
-        generate_command = [sys.executable, GENERATE_SCRIPT]
-
-        _run_wan_command(generate_command, cwd=WORKFLOW_ROOT_DIR)
-        logger.info("Generation finished.")
-
-        # 5) Read output file into bytes and return
-        with open(video_with_audio, "rb") as f:
-            video_with_audio_bytes = f.read()
-        with open(interpolated_video, "rb") as f:
-            interpolated_video_bytes = f.read()
-
-        return video_with_audio_bytes, interpolated_video_bytes
-
-    except Exception as e:
-        logger.exception("Pipeline fail ed")
-        raise
-
-    finally:
-        # Cleanup all created files and directories
-        for p in temp_paths:
-            try:
-                if os.path.exists(p):
-                    os.remove(p)
-                    logger.info(f"Removed temp file: {p}")
-            except Exception:
-                logger.warning(f"Could not remove temp file: {p}", exc_info=True)
