@@ -1,7 +1,6 @@
 import os
 import sys
 import shutil
-import subprocess
 import base64
 from celery import Celery
 from celery.utils.log import get_task_logger
@@ -28,7 +27,7 @@ app.conf.task_queues = {
 }
 app.conf.broker_transport_options = {
     "socket_keepalive": True,
-    "socket_timeout": 30,        # seconds for socket ops
+    "socket_timeout": 30,  # seconds for socket ops
     "socket_connect_timeout": 10,
 }
 app.conf.result_backend_transport_options = {
@@ -36,19 +35,7 @@ app.conf.result_backend_transport_options = {
     "socket_timeout": 30,
 }
 
-# path to the generation script (inside the docker container)
-GENERATE_SCRIPT = "/app/comfyui_logic/workflow.py"
-GENERATE_SCRIPT = os.path.abspath(GENERATE_SCRIPT)
-if not os.path.exists(GENERATE_SCRIPT):
-    raise RuntimeError(f"Generate script not found: {GENERATE_SCRIPT}")
-# try to make the script executable (harmless if already executable or failing on restrictive FS)
-if not os.access(GENERATE_SCRIPT, os.X_OK):
-    try:
-        os.chmod(GENERATE_SCRIPT, 0o755)
-    except Exception:
-        logger.warning(
-            f"Could not chmod {GENERATE_SCRIPT}; ensure it is executable if needed."
-        )
+# Root directory for workflow (inside the docker container)
 WORKFLOW_ROOT_DIR = "/app/comfyui_logic"
 INPUT_PATH = "/app/comfyui_logic/ComfyUI/input/"
 OUTPUT_PATH = "/app/comfyui_logic/ComfyUI/output/"
@@ -68,13 +55,8 @@ def animate(image_b64: str, video_b64: str) -> dict:
     """
     image_bytes = _b64_to_bytes(image_b64)
     video_bytes = _b64_to_bytes(video_b64)
-    video_with_audio_bytes, interpolated_video_bytes = _run_pipeline(
-        image_bytes, video_bytes
-    )
-    return {
-        "video_with_audio": _bytes_to_b64(video_with_audio_bytes),
-        "interpolated_video": _bytes_to_b64(interpolated_video_bytes),
-    }
+    output_video_bytes = _run_pipeline(image_bytes, video_bytes)
+    return _bytes_to_b64(output_video_bytes)
 
 
 def _b64_to_bytes(data: str) -> bytes:
@@ -85,32 +67,35 @@ def _bytes_to_b64(data: bytes) -> str:
     return base64.b64encode(data).decode("ascii")
 
 
-def _run_pipeline(image_bytes: bytes, video_bytes: bytes) -> tuple[bytes, bytes]:
+def _run_pipeline(image_bytes: bytes, video_bytes: bytes) -> bytes:
     """
-    Core pipeline: write incoming bytes to files, run generate, read output bytes.
-    Always returns bytes of the created output files.
+    Core pipeline: cleanup, write incoming bytes to files, run generate, read output bytes.
+    Always returns bytes of the created output file.
     """
 
     try:
         _cleanup_old_inputs_outputs()
-        # 2) Write inputs to input folder
+        # 1) Write inputs to input folder
         _write_bytes_to_path(image_bytes, path=IMAGE_PATH)
         _write_bytes_to_path(video_bytes, path=VIDEO_PATH)
         logger.info(f"Wrote input bytes to {IMAGE_PATH} and {VIDEO_PATH}")
         logger.info(f"Will write generated output to: {OUTPUT_PATH}")
 
-        # 2) Generation command
-        generate_command = [sys.executable, GENERATE_SCRIPT]
-        _run_wan_command(generate_command, cwd=WORKFLOW_ROOT_DIR)
-        logger.info("Generation finished.")
+        # 2) Set up environment and run workflow
+        try:
+            from comfyui_logic import workflow
+
+            workflow.main(comfyui_directory=WORKFLOW_ROOT_DIR)
+            logger.info("Generation finished.")
+        except Exception:
+            logger.exception("Workflow execution failed")
+            raise
 
         # 3) Read output file into bytes and return
-        with open(VIDEO_WITH_AUDIO_PATH, "rb") as f:
-            video_with_audio_bytes = f.read()
         with open(INTERPOLATED_VIDEO_PATH, "rb") as f:
             interpolated_video_bytes = f.read()
 
-        return video_with_audio_bytes, interpolated_video_bytes
+        return interpolated_video_bytes
 
     except Exception as e:
         logger.exception("Pipeline fail ed")
@@ -144,36 +129,3 @@ def _write_bytes_to_path(data: bytes, path: str) -> None:
         f.write(data)
         f.flush()
         os.fsync(f.fileno())
-
-
-def _run_wan_command(command_args: list, cwd: str, env: dict = None) -> str:
-    full_env = os.environ.copy()
-    if env:
-        full_env.update(env)
-
-    logger.info(f"Executing command: {' '.join(command_args)} in CWD: {cwd}")
-    try:
-        res = subprocess.run(
-            command_args,
-            cwd=cwd,
-            capture_output=True,
-            text=True,
-            check=True,
-            env=full_env,
-        )
-        if res.stdout:
-            logger.debug(res.stdout)
-        if res.stderr:
-            logger.warning(res.stderr)
-        return res.stdout
-    except subprocess.CalledProcessError as e:
-        logger.error(
-            f"Command failed: returncode={e.returncode}. stdout={e.stdout} stderr={e.stderr}"
-        )
-        raise RuntimeError(f"Wan2.2 command failed: {e.stderr or e.stdout}")
-    except FileNotFoundError:
-        logger.error("Executable or script not found.")
-        raise RuntimeError("Command executable or script not found.")
-    except Exception as e:
-        logger.exception("Unexpected error running command")
-        raise RuntimeError(f"Unexpected error: {e}")
