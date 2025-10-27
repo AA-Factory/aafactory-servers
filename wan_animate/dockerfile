@@ -25,11 +25,8 @@ RUN uv venv
 COPY pyproject.toml /app/pyproject.toml
 RUN uv sync
 
-# --- APPLICATION SETUP STAGE ---
-# Now we clone repos and copy application code. Any changes here will only affect
-# subsequent steps, not the dependency installation above.
-
-# Clone ComfyUI repo
+# ---------------- Clone Comfui and required custon nodes ----------------
+# Clone ComfyUI repo to specific commit
 RUN mkdir -p /app/comfyui_logic
 RUN cd /app/comfyui_logic && git clone https://github.com/comfyanonymous/ComfyUI.git && \
     git -C /app/comfyui_logic/ComfyUI checkout 388b306a2b48070737b092b51e76de933baee9ad
@@ -61,9 +58,11 @@ RUN git -C /app/comfyui_logic/ComfyUI/custom_nodes/ComfyMath checkout c01177221c
     git -C /app/comfyui_logic/ComfyUI/custom_nodes/comfyui-tensorops checkout d34488e3079ecd10db2fe867c3a7af568115faed && \
     git -C /app/comfyui_logic/ComfyUI/custom_nodes/comfyui_controlnet_aux checkout 12f35647f0d510e03b45a47fb420fe1245a575df && \
     git -C /app/comfyui_logic/ComfyUI/custom_nodes/rgthree-comfy checkout 2b9eb36d3e1741e88dbfccade0e08137f7fa2bfb
+# ----------------------------------------------------------------
 
-
-# Avoid compiling sm90 kernels for sm_120; build fat binary safely
+# ---------------- SageAttention 2.2 installation ----------------
+# We are applying a patch to setup.py to allow building without a GPU present
+# and to customize the CUDA architectures built for each extension.
 ENV SAGE_ATTENTION_ARCHS="8.0+PTX;8.6+PTX;8.9+PTX;9.0+PTX;12.0+PTX" \
     CUDA_HOME=/usr/local/cuda \
     PATH=/usr/local/cuda/bin:${PATH} \
@@ -144,9 +143,9 @@ PY
 # Ensure build tools in venv and build
 RUN uv pip install -p /app/.venv/bin/python -U setuptools wheel
 RUN cd SageAttention && /app/.venv/bin/python setup.py install
+# ----------------------------------------------------------------
     
 # Copy all application-specific files in one go.
-# If any of these files change, only this layer and subsequent ones are rebuilt.
 COPY comfyui_logic/workflow.py /app/comfyui_logic/workflow.py
 COPY celery_worker.py .
 COPY entrypoint.sh .
