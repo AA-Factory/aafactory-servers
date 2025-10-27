@@ -1,0 +1,158 @@
+FROM nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04
+
+# Prevent interactive prompts during build
+ENV DEBIAN_FRONTEND=noninteractive
+
+ARG BUILD_ENV=local
+ENV BUILD_ENV=${BUILD_ENV}
+
+# Install Python, pip, git, and other essentials
+RUN --mount=type=cache,target=/var/cache/apt \
+    apt-get update && apt-get install -y \
+    python3.10 python3-pip git ffmpeg redis-server libcairo2-dev pkg-config curl\
+    && rm -rf /var/lib/apt/lists/*
+
+# Set python3.10 as the default python
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.10 1
+
+WORKDIR /app
+
+RUN pip install uv
+
+ENV TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0;12.0+PTX"
+
+RUN uv venv
+COPY pyproject.toml /app/pyproject.toml
+RUN uv sync
+
+# ---------------- Clone Comfui and required custon nodes ----------------
+# Clone ComfyUI repo to specific commit
+RUN mkdir -p /app/comfyui_logic
+RUN cd /app/comfyui_logic && git clone https://github.com/comfyanonymous/ComfyUI.git && \
+    git -C /app/comfyui_logic/ComfyUI checkout 388b306a2b48070737b092b51e76de933baee9ad
+
+# Install all custom nodes (clone)
+RUN cd /app/comfyui_logic/ComfyUI/custom_nodes && \
+    git clone https://github.com/evanspearman/ComfyMath.git && \
+    git clone https://github.com/Fannovel16/comfyui_controlnet_aux.git && \
+    git clone https://github.com/pythongosssss/ComfyUI-Custom-Scripts.git && \
+    git clone https://github.com/yolain/ComfyUI-Easy-Use.git && \
+    git clone https://github.com/Fannovel16/ComfyUI-Frame-Interpolation.git && \
+    git clone https://github.com/kijai/ComfyUI-KJNodes.git && \
+    git clone https://github.com/MixLabPro/comfyui-mixlab-nodes.git && \
+    git clone https://github.com/kijai/ComfyUI-segment-anything-2.git && \
+    git clone https://github.com/un-seen/comfyui-tensorops.git && \
+    git clone https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git && \
+    git clone https://github.com/kijai/ComfyUI-WanVideoWrapper.git && \
+    git clone https://github.com/rgthree/rgthree-comfy.git
+# Pin each cloned repo to the specific commit
+RUN git -C /app/comfyui_logic/ComfyUI/custom_nodes/ComfyMath checkout c01177221c31b8e5fbc062778fc8254aeb541638 && \
+    git -C /app/comfyui_logic/ComfyUI/custom_nodes/ComfyUI-Custom-Scripts checkout f2838ed5e59de4d73cde5c98354b87a8d3200190 && \
+    git -C /app/comfyui_logic/ComfyUI/custom_nodes/ComfyUI-Easy-Use checkout 125b3a4905ac9367f7aae5c2df67e2282f0a3d37 && \
+    git -C /app/comfyui_logic/ComfyUI/custom_nodes/ComfyUI-Frame-Interpolation checkout a969c01dbccd9e5510641be04eb51fe93f6bfc3d && \
+    git -C /app/comfyui_logic/ComfyUI/custom_nodes/ComfyUI-KJNodes checkout 6ee278aa7d802c03ad713a7c5fbc02861b6773a8 && \
+    git -C /app/comfyui_logic/ComfyUI/custom_nodes/ComfyUI-VideoHelperSuite checkout 6e7f63867584bb1fb4944d36172e7f98436da9a1 && \
+    git -C /app/comfyui_logic/ComfyUI/custom_nodes/ComfyUI-WanVideoWrapper checkout d74cfc54e8ae065d7f32b36634be770bae525f5c && \
+    git -C /app/comfyui_logic/ComfyUI/custom_nodes/ComfyUI-segment-anything-2 checkout 0c35fff5f382803e2310103357b5e985f5437f32 && \
+    git -C /app/comfyui_logic/ComfyUI/custom_nodes/comfyui-mixlab-nodes checkout 32b22c39cbe13b46df29ef1b6ab088c2eb4389d2 && \
+    git -C /app/comfyui_logic/ComfyUI/custom_nodes/comfyui-tensorops checkout d34488e3079ecd10db2fe867c3a7af568115faed && \
+    git -C /app/comfyui_logic/ComfyUI/custom_nodes/comfyui_controlnet_aux checkout 12f35647f0d510e03b45a47fb420fe1245a575df && \
+    git -C /app/comfyui_logic/ComfyUI/custom_nodes/rgthree-comfy checkout 2b9eb36d3e1741e88dbfccade0e08137f7fa2bfb
+# ----------------------------------------------------------------
+
+# ---------------- SageAttention 2.2 installation ----------------
+# We are applying a patch to setup.py to allow building without a GPU present
+# and to customize the CUDA architectures built for each extension.
+ENV SAGE_ATTENTION_ARCHS="8.0+PTX;8.6+PTX;8.9+PTX;9.0+PTX;12.0+PTX" \
+    CUDA_HOME=/usr/local/cuda \
+    PATH=/usr/local/cuda/bin:${PATH} \
+    LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH} \
+    FORCE_CUDA=1
+
+RUN test -d SageAttention || git clone https://github.com/thu-ml/SageAttention.git && \
+    git -C SageAttention checkout 22c68fb5e561b66c0a816eb27f46299b3d2cc8af
+
+
+# Patch setup.py: read env archs; use per-extension gencodes (sm80:80/86, sm89:89, sm90:90/90a, fused:80/86/89/90/90a/120)
+RUN /app/.venv/bin/python - <<'PY'
+from pathlib import Path, re as _re
+p = Path('SageAttention/setup.py')
+s = p.read_text(encoding='utf-8')
+
+# 1) Allow env-provided arch list (no GPU required)
+inj = '''compute_capabilities = set()
+# Injected: read archs from env if no GPUs
+import os, re as _re
+_env_archs = os.getenv("SAGE_ATTENTION_ARCHS") or os.getenv("CUDA_ARCH_LIST") or os.getenv("TORCH_CUDA_ARCH_LIST") or os.getenv("CMAKE_CUDA_ARCHITECTURES")
+if _env_archs:
+    compute_capabilities.update([a for a in _re.split(r"[;,\\s]+", _env_archs) if a])
+'''
+s = s.replace('compute_capabilities = set()', inj, 1)
+
+# 2) Per-extension NVCC flags (filter gencodes)
+add = r'''
+# Injected: filter gencodes per extension to avoid sm90 kernels on sm_120
+import re as _re
+def _strip_gencodes(flags):
+    out=[]; i=0
+    while i < len(flags):
+        if flags[i] == "-gencode":
+            i += 2
+        else:
+            out.append(flags[i]); i += 1
+    return out
+
+def _filter_gencodes(flags, allowed):
+    out=[]; i=0
+    while i < len(flags):
+        if flags[i] == "-gencode" and i+1 < len(flags):
+            arg = flags[i+1]
+            m = _re.search(r'arch=compute_([0-9]+a?)', arg)
+            num = m.group(1) if m else None
+            if num in allowed:
+                out.extend([flags[i], arg])
+            i += 2
+        else:
+            i += 1
+    return out
+
+NVCC_BASE = _strip_gencodes(NVCC_FLAGS)
+NVCC_FLAGS_SM80 = NVCC_BASE + _filter_gencodes(NVCC_FLAGS, {"80","86"})
+NVCC_FLAGS_SM89 = NVCC_BASE + _filter_gencodes(NVCC_FLAGS, {"89"})
+NVCC_FLAGS_SM90 = NVCC_BASE + _filter_gencodes(NVCC_FLAGS, {"90","90a"})
+NVCC_FLAGS_FUSED = NVCC_BASE + _filter_gencodes(NVCC_FLAGS, {"80","86","89","90","90a","120"})
+'''
+s = s.replace('ext_modules = []', add + '\next_modules = []', 1)
+
+# 3) Swap NVCC flags usage per extension (order: sm80, sm89, sm90, fused)
+count = {'i':0}
+def repl(m):
+    count['i'] += 1
+    return {
+        1: '"nvcc": NVCC_FLAGS_SM80,',
+        2: '"nvcc": NVCC_FLAGS_SM89,',
+        3: '"nvcc": NVCC_FLAGS_SM90,',
+        4: '"nvcc": NVCC_FLAGS_FUSED,',
+    }.get(count['i'], m.group(0))
+s = _re.sub(r'"nvcc": NVCC_FLAGS,', repl, s)
+
+p.write_text(s, encoding='utf-8')
+print("Patched SageAttention/setup.py")
+PY
+
+# Ensure build tools in venv and build
+RUN uv pip install -p /app/.venv/bin/python -U setuptools wheel
+RUN cd SageAttention && /app/.venv/bin/python setup.py install
+# ----------------------------------------------------------------
+    
+# Copy all application-specific files in one go.
+COPY comfyui_logic/workflow.py /app/comfyui_logic/workflow.py
+COPY celery_worker.py .
+COPY entrypoint.sh .
+
+ENV PYTHONBUFFERED=1
+# Make the entrypoint script executable
+RUN chmod +x /app/entrypoint.sh
+
+# Set the entrypoint
+ENTRYPOINT ["/app/entrypoint.sh"]
