@@ -1,0 +1,27 @@
+ipykernel
+ipywidgets
+pillow
+packaging
+requests
+anyio
+pydantic
+aiohttp
+websocket-client
+beautifulsoup4
+torch >= 2.8.0
+torchvision
+transformers >= 4.56.2
+diffusers
+accelerate
+einops
+imageio
+imageio-ffmpeg
+opencv-python
+pytest
+sentencepiece
+tqdm
+av
+omegaconf
+ninja
+numpy
+bitsandbytes
