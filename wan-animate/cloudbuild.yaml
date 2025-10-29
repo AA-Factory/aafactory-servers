@@ -26,7 +26,7 @@ steps:
           .
     env:
       - 'TAG_NAME=$TAG_NAME'
-    dir: 'wan_animate'
+    dir: 'wan-animate'
 
 # Configure secrets
 availableSecrets:
