@@ -1,6 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
+./download_models.sh
 ./install_sage_attention.sh
 
 echo "Starting Celery worker..."
