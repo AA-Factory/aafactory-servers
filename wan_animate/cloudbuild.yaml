@@ -20,7 +20,7 @@ steps:
         TAG="${TAG_NAME#wan-animate-}"
         docker buildx build \
           --platform=linux/amd64 \
-          --tag=elliotcarery/wan-animate-server:$$TAG \
+          --tag=aafactory/wan-animate-server:$$TAG \
           --push \
           -f dockerfile \
           .
