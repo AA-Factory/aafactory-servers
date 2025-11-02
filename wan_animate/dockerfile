@@ -59,10 +59,10 @@ RUN git -C /app/comfyui_logic/ComfyUI/custom_nodes/ComfyMath checkout c01177221c
     git -C /app/comfyui_logic/ComfyUI/custom_nodes/comfyui_controlnet_aux checkout 12f35647f0d510e03b45a47fb420fe1245a575df && \
     git -C /app/comfyui_logic/ComfyUI/custom_nodes/rgthree-comfy checkout 2b9eb36d3e1741e88dbfccade0e08137f7fa2bfb
 # ----------------------------------------------------------------
-RUN chmod +x install_sage_attention.sh download_models.sh
 COPY download_models.sh .
-RUN ./download_models.sh
 COPY install_sage_attention.sh .
+RUN chmod +x install_sage_attention.sh download_models.sh
+RUN ./download_models.sh
 RUN ./install_sage_attention.sh
     
 # Copy all application-specific files in one go.
