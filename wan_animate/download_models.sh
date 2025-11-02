@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 BASE_DIR="/app/comfyui_logic/ComfyUI/models"
 CURL_BIN="${CURL_BIN:-curl}"
 
