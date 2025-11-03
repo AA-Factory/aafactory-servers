@@ -60,13 +60,13 @@ OUTPUT_VIDEO_PATH = os.path.join(OUTPUT_PATH, "Wanimate_Interpolated_00001-audio
 
 
 @app.task(name="tasks.animate", queue="animate")
-def animate(image_b64: str, video_b64: str) -> dict:
+def animate(image_bytes: str, video_bytes: str) -> dict:
     """
     Accepts image and video as base64-encoded strings.
     Returns dictionary with a base64-encoded strings containing the generated output (MP4).
     """
-    image_bytes = _b64_to_bytes(image_b64)
-    video_bytes = _b64_to_bytes(video_b64)
+    image_bytes = _b64_to_bytes(image_bytes)
+    video_bytes = _b64_to_bytes(video_bytes)
     output_video_bytes = _run_pipeline(image_bytes, video_bytes)
     return _bytes_to_b64(output_video_bytes)
 
