@@ -1,0 +1,45 @@
+FROM nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04
+
+# Prevent interactive prompts during build
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+
+ARG BUILD_ENV=local
+ENV BUILD_ENV=${BUILD_ENV}
+
+# Install Python, pip, git, and other essentials
+RUN --mount=type=cache,target=/var/cache/apt \
+    apt-get update && apt-get install -y \
+    python3.10 python3-pip git ffmpeg redis-server libcairo2-dev pkg-config curl\
+    && rm -rf /var/lib/apt/lists/*
+
+# Set python3.10 as the default python
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.10 1
+
+WORKDIR /app
+
+RUN pip install uv
+
+ENV TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0;12.0+PTX"
+
+RUN uv venv
+COPY pyproject.toml /app/pyproject.toml
+RUN uv sync
+
+# Clone Comfyui and its custom nodes
+COPY init_comfyui.sh .
+RUN chmod +x ./init_comfyui.sh
+RUN ./init_comfyui.sh
+    
+# Copy all application-specific files in one go.
+COPY comfyui_logic/workflow.py /app/comfyui_logic/workflow.py
+COPY celery_worker.py .
+COPY download_models.sh .
+COPY install_sage_attention.sh .
+COPY entrypoint.sh .
+
+# Make the scripts executable
+RUN chmod +x /app/entrypoint.sh /app/install_sage_attention.sh /app/download_models.sh
+
+# Set the entrypoint
+ENTRYPOINT ["/app/entrypoint.sh"]
