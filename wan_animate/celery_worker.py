@@ -59,8 +59,8 @@ VIDEO_PATH = os.path.join(INPUT_PATH, "video.mp4")
 OUTPUT_VIDEO_PATH = os.path.join(OUTPUT_PATH, "Wanimate_Interpolated_00001-audio.mp4")
 
 
-@app.task(name="tasks.animate", queue="animate")
-def animate(image_bytes: str, video_bytes: str) -> dict:
+@app.task(name="image_and_video_to_video", queue="wan_animate")
+def image_and_video_to_video(image_bytes: str, video_bytes: str) -> dict:
     """
     Accepts image and video as base64-encoded strings.
     Returns dictionary with a base64-encoded strings containing the generated output (MP4).
