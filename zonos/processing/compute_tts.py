@@ -6,6 +6,7 @@ from zonos.conditioning import make_cond_dict
 from zonos.utils import DEFAULT_DEVICE as device
 import base64
 from pathlib import Path
+import gc
 
 MODULE_PATH = Path(__file__).parent
 
@@ -44,4 +45,8 @@ def run_text_to_speech(prompt: str, voice_bytes: str,  language: str) -> bytes:
     torchaudio.save(buffer, output, model.autoencoder.sampling_rate, format="wav")
     buffer.seek(0)
     audio_data = buffer.read()
+    # Clean up model and free GPU memory
+    del model
+    torch.cuda.empty_cache()
+    gc.collect()
     return base64.b64encode(audio_data)
