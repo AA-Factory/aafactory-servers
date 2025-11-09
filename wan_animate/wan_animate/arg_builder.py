@@ -2,7 +2,7 @@ import os
 import logging
 from typing import Any, Dict, List
 
-from arg_config import ARG_CONFIG, SYSTEM_ONLY_KEYS, USER_SETTABLE_KEYS
+from wan_animate.arg_config import ARG_CONFIG, SYSTEM_ONLY_KEYS, USER_SETTABLE_KEYS
 
 def _validate_and_map_args(
     args: Dict[str, Any], allowed_keys: set[str], strict: bool = True
