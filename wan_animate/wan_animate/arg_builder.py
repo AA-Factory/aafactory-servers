@@ -43,10 +43,8 @@ def _dict_to_cli_args(overrides: Dict[str, Any]) -> List[str]:
     """
     out: List[str] = []
     for k, v in overrides.items():
-        flag = f"--{k.replace('_','-')}"
-        if isinstance(v, bool):
-            out.append(flag if v else f"--no-{k.replace('_','-')}")
-        elif isinstance(v, (list, tuple)):
+        flag = f"--{k}"
+        if isinstance(v, (list, tuple)):
             for item in v:
                 out.extend([flag, str(item)])
         else:
