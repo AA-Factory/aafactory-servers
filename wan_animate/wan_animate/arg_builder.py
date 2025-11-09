@@ -46,9 +46,9 @@ def _dict_to_cli_args(overrides: Dict[str, Any]) -> List[str]:
         flag = f"--{k}"
         if isinstance(v, (list, tuple)):
             for item in v:
-                out.extend([flag, str(item)])
+                out.extend([flag, item])
         else:
-            out.extend([flag, str(v)])
+            out.extend([flag, v])
     return out
 
 def build_user_cli_args(user_args: Dict[str, Any]) -> List[str]:
@@ -58,13 +58,13 @@ def build_user_cli_args(user_args: Dict[str, Any]) -> List[str]:
     """
     try:
         # Pass the specific set of keys allowed for users
-        mapped_args = _validate_and_map_args(
+        return _validate_and_map_args(
             user_args, allowed_keys=USER_SETTABLE_KEYS, strict=True
         )
     except (ValueError, TypeError) as e:
         logging.getLogger().error(f"Invalid user arguments: {e}")
         raise
-    return _dict_to_cli_args(mapped_args)
+    # return _dict_to_cli_args(mapped_args)
 
 
 def build_system_cli_args(image_path: str, video_path: str) -> List[str]:
@@ -76,7 +76,7 @@ def build_system_cli_args(image_path: str, video_path: str) -> List[str]:
         "input_video": os.path.basename(video_path),
     }
     # Pass the specific set of keys reserved for the system
-    mapped_args = _validate_and_map_args(
+    return _validate_and_map_args(
         system_args_dict, allowed_keys=SYSTEM_ONLY_KEYS, strict=True
     )
-    return _dict_to_cli_args(mapped_args)
+    # return _dict_to_cli_args(mapped_args)

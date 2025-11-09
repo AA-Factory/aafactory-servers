@@ -11,6 +11,7 @@ from wan_animate.worker_utils import (
     run_python_command,
     write_bytes_to_path,
 )
+from wan_animate.workflow import main
 
 logger = get_task_logger(__name__)
 logger.setLevel("INFO")
@@ -104,7 +105,8 @@ def _run_pipeline(image_bytes: bytes, video_bytes: bytes, user_args: dict) -> by
 
         # 3) Start generation
         logger.info("Generation started...")
-        run_python_command(generate_command, cwd=WORKFLOW_ROOT_DIR)
+        main(**{**system_cli_args, **user_cli_args})
+        # run_python_command(generate_command, cwd=WORKFLOW_ROOT_DIR)
         logger.info("Generation finished.")
 
         # 4) Read output file into bytes and return
