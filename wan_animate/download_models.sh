@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-BASE_DIR="/app/comfyui_logic/ComfyUI/models"
+BASE_DIR="/app/wan_animate/ComfyUI/models"
 CURL_BIN="${CURL_BIN:-curl}"
 
 declare -A MODELS=(

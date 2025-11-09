@@ -87,6 +87,7 @@ dependencies = [
     "torch==2.9.0",
     "torchvision==0.24.0",
     "torchaudio==2.9.0",
+    "python-magic==0.4.27",
     "packaging",
     "setuptools",
     "wheel"

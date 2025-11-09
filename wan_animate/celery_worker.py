@@ -1,10 +1,16 @@
 import os
 import sys
-import shutil
-import subprocess
-import base64
 from celery import Celery
 from celery.utils.log import get_task_logger
+from wan_animate.arg_builder import build_system_cli_args, build_user_cli_args
+from wan_animate.worker_utils import (
+    b64_to_bytes,
+    bytes_to_b64,
+    delete_files_from_folder,
+    detect_file_extension,
+    run_python_command,
+    write_bytes_to_path,
+)
 
 logger = get_task_logger(__name__)
 logger.setLevel("INFO")
@@ -36,50 +42,47 @@ app.conf.result_backend_transport_options = {
     "socket_timeout": 30,
 }
 
-GENERATE_SCRIPT = "/app/comfyui_logic/workflow.py"
-GENERATE_SCRIPT = os.path.abspath(GENERATE_SCRIPT)
-if not os.path.exists(GENERATE_SCRIPT):
-    raise RuntimeError(f"Generate script not found: {GENERATE_SCRIPT}")
-# try to make the script executable (harmless if already executable or failing on restrictive FS)
-if not os.access(GENERATE_SCRIPT, os.X_OK):
-    try:
-        os.chmod(GENERATE_SCRIPT, 0o755)
-    except Exception:
-        logger.warning(
-            f"Could not chmod {GENERATE_SCRIPT}; ensure it is executable if needed."
-        )
+GENERATE_SCRIPT = "/app/wan_animate/workflow.py"
 # Root directory for workflow (inside the docker container)
-WORKFLOW_ROOT_DIR = "/app/comfyui_logic"
-INPUT_PATH = "/app/comfyui_logic/ComfyUI/input/"
-OUTPUT_PATH = "/app/comfyui_logic/ComfyUI/output/"
+WORKFLOW_ROOT_DIR = "/app/wan_animate"
+INPUT_PATH = "/app/wan_animate/ComfyUI/input/"
+OUTPUT_PATH = "/app/wan_animate/ComfyUI/output/"
 # Define paths for input files
-IMAGE_PATH = os.path.join(INPUT_PATH, "image.jpeg")
-VIDEO_PATH = os.path.join(INPUT_PATH, "video.mp4")
+INPUT_IMAGE_FILE_NAME = "image"
+INPUT_VIDEO_FILE_NAME = "video"
 # Define which videos we want to read after generation
 OUTPUT_VIDEO_PATH = os.path.join(OUTPUT_PATH, "Wanimate_Interpolated_00001-audio.mp4")
 
 
 @app.task(name="image_and_video_to_video", queue="wan_animate")
-def image_and_video_to_video(image_bytes: str, video_bytes: str) -> dict:
+def image_and_video_to_video(
+    image_bytes: str, video_bytes: str, user_args: dict = None
+) -> dict:
     """
     Accepts image and video as base64-encoded strings.
     Returns dictionary with a base64-encoded strings containing the generated output (MP4).
     """
-    image_bytes = _b64_to_bytes(image_bytes)
-    video_bytes = _b64_to_bytes(video_bytes)
-    output_video_bytes = _run_pipeline(image_bytes, video_bytes)
-    return _bytes_to_b64(output_video_bytes)
+    image_bytes = b64_to_bytes(image_bytes)
+    video_bytes = b64_to_bytes(video_bytes)
+    output_video_bytes = _run_pipeline(image_bytes, video_bytes, user_args or {})
+    return bytes_to_b64(output_video_bytes)
 
 
-def _b64_to_bytes(data: str) -> bytes:
-    return base64.b64decode(data)
+def _load_and_save_inputs(image_bytes: bytes, video_bytes: bytes) -> None:
+    """Determine extensions, build paths, and write files"""
+
+    image_ext = detect_file_extension(image_bytes)
+    video_ext = detect_file_extension(video_bytes)
+
+    image_path = os.path.join(INPUT_PATH, f"{INPUT_IMAGE_FILE_NAME}.{image_ext}")
+    video_path = os.path.join(INPUT_PATH, f"{INPUT_VIDEO_FILE_NAME}.{video_ext}")
+
+    write_bytes_to_path(image_bytes, path=image_path)
+    write_bytes_to_path(video_bytes, path=video_path)
+    return image_path, video_path
 
 
-def _bytes_to_b64(data: bytes) -> str:
-    return base64.b64encode(data).decode("ascii")
-
-
-def _run_pipeline(image_bytes: bytes, video_bytes: bytes) -> bytes:
+def _run_pipeline(image_bytes: bytes, video_bytes: bytes, user_args: dict) -> bytes:
     """
     Core pipeline: cleanup, write incoming bytes to files, run generate, read output bytes.
     Always returns bytes of the created output file.
@@ -88,87 +91,40 @@ def _run_pipeline(image_bytes: bytes, video_bytes: bytes) -> bytes:
     try:
         _cleanup_old_inputs_outputs()
         # 1) Write inputs to input folder
-        _write_bytes_to_path(image_bytes, path=IMAGE_PATH)
-        _write_bytes_to_path(video_bytes, path=VIDEO_PATH)
-        logger.info(f"Wrote input bytes to {IMAGE_PATH} and {VIDEO_PATH}")
+        image_path, video_path = _load_and_save_inputs(image_bytes, video_bytes)
+        logger.info(f"Wrote input bytes to {image_path} and {video_path}")
         logger.info(f"Will write generated output to: {OUTPUT_PATH}")
 
         # 2) Set up environment and run workflow
-        generate_command = [sys.executable, GENERATE_SCRIPT]
-        _run_wan_command(generate_command, cwd=WORKFLOW_ROOT_DIR)
+        system_cli_args = build_system_cli_args(image_path, video_path)
+        user_cli_args = build_user_cli_args(user_args)
+        generate_command = (
+            [sys.executable, GENERATE_SCRIPT] + system_cli_args + user_cli_args
+        )
+
+        # 3) Start generation
+        logger.info("Generation started...")
+        run_python_command(generate_command, cwd=WORKFLOW_ROOT_DIR)
         logger.info("Generation finished.")
 
-        # 3) Read output file into bytes and return
-        logger.info(f"Output folder has following files:")
-        for root, _, files in os.walk(OUTPUT_PATH):
-            for file in files:
-                logger.info(os.path.join(root, file))
-        with open(OUTPUT_VIDEO_PATH, "rb") as f:
-            output_video_bytes = f.read()
-
-        return output_video_bytes
+        # 4) Read output file into bytes and return
+        return _fetch_output()
 
     except Exception as e:
-        logger.exception("Pipeline fail ed")
+        logger.exception("Pipeline failed")
         raise RuntimeError(f"Pipeline failed: {e}")
-
+    
+def _fetch_output() -> bytes:
+    """Reads the generated output video file and returns its bytes."""
+    logger.info(f"Output folder has following files:")
+    for root, _, files in os.walk(OUTPUT_PATH):
+        for file in files:
+            logger.info(os.path.join(root, file))
+    with open(OUTPUT_VIDEO_PATH, "rb") as f:
+        return f.read()
 
 def _cleanup_old_inputs_outputs():
     """Cleans up old input and output files to avoid interference."""
 
-    for folder in [INPUT_PATH, OUTPUT_PATH]:
-        # Remove every entry inside the folder but keep the folder itself.
-        for name in os.listdir(folder):
-            path = os.path.join(folder, name)
-            try:
-                # If it's a file or symlink, remove it; if it's a directory, rmtree it.
-                if os.path.islink(path) or os.path.isfile(path):
-                    os.remove(path)
-                elif os.path.isdir(path):
-                    shutil.rmtree(path)
-                else:
-                    # Unknown file type: try removing as file.
-                    os.remove(path)
-                logger.info(f"Removed: {path}")
-            except Exception:
-                logger.warning(f"Could not remove: {path}", exc_info=True)
-
-
-def _write_bytes_to_path(data: bytes, path: str) -> None:
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "wb") as f:
-        f.write(data)
-        f.flush()
-        os.fsync(f.fileno())
-
-def _run_wan_command(command_args: list, cwd: str, env: dict = None) -> str:
-    full_env = os.environ.copy()
-    if env:
-        full_env.update(env)
-
-    logger.info(f"Executing command: {' '.join(command_args)} in CWD: {cwd}")
-    try:
-        res = subprocess.run(
-            command_args,
-            cwd=cwd,
-            capture_output=True,
-            text=True,
-            check=True,
-            env=full_env,
-        )
-        if res.stdout:
-            logger.debug(res.stdout)
-        if res.stderr:
-            logger.warning(res.stderr)
-        return res.stdout
-    except subprocess.CalledProcessError as e:
-        logger.error(
-            f"Command failed: returncode={e.returncode}. stdout={e.stdout} stderr={e.stderr}"
-        )
-        raise RuntimeError(f"Wan2.2 command failed: {e.stderr or e.stdout}")
-    except FileNotFoundError:
-        logger.error("Executable or script not found.")
-        raise RuntimeError("Command executable or script not found.")
-    except Exception as e:
-        logger.exception("Unexpected error running command")
-        raise RuntimeError(f"Unexpected error: {e}")
+    delete_files_from_folder(INPUT_PATH)
+    delete_files_from_folder(OUTPUT_PATH)
