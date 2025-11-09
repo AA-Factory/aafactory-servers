@@ -10,7 +10,7 @@ ENV BUILD_ENV=${BUILD_ENV}
 # Install Python, pip, git, and other essentials
 RUN --mount=type=cache,target=/var/cache/apt \
     apt-get update && apt-get install -y \
-    python3.10 python3-pip git ffmpeg redis-server libcairo2-dev pkg-config curl\
+    python3.10 python3-pip git ffmpeg redis-server libcairo2-dev pkg-config curl libmagic1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Set python3.10 as the default python
