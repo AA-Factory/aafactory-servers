@@ -99,9 +99,9 @@ def _run_pipeline(image_bytes: bytes, video_bytes: bytes, user_args: dict) -> by
         # 2) Set up environment and run workflow
         system_cli_args = build_system_cli_args(image_path, video_path)
         user_cli_args = build_user_cli_args(user_args)
-        generate_command = (
-            [sys.executable, GENERATE_SCRIPT] + system_cli_args + user_cli_args
-        )
+        # generate_command = (
+        #     [sys.executable, GENERATE_SCRIPT] + system_cli_args + user_cli_args
+        # )
 
         # 3) Start generation
         logger.info("Generation started...")
