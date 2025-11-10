@@ -1,3 +1,4 @@
+import json
 import os
 import logging
 from typing import Any, Dict, List
@@ -43,12 +44,7 @@ def _dict_to_cli_args(overrides: Dict[str, Any]) -> List[str]:
     """
     out: List[str] = []
     for k, v in overrides.items():
-        flag = f"--{k}"
-        if isinstance(v, (list, tuple)):
-            for item in v:
-                out.extend([flag, item])
-        else:
-            out.extend([flag, v])
+        out.extend([f"--{k}", json.dumps(v)])
     return out
 
 def build_user_cli_args(user_args: Dict[str, Any]) -> List[str]:
@@ -58,26 +54,25 @@ def build_user_cli_args(user_args: Dict[str, Any]) -> List[str]:
     """
     try:
         # Pass the specific set of keys allowed for users
-        return _validate_and_map_args(
+        mapped_args = _validate_and_map_args(
             user_args, allowed_keys=USER_SETTABLE_KEYS, strict=True
         )
     except (ValueError, TypeError) as e:
         logging.getLogger().error(f"Invalid user arguments: {e}")
         raise
-    # return _dict_to_cli_args(mapped_args)
+    return _dict_to_cli_args(mapped_args)
 
 
-def build_system_cli_args(image_path: str, video_path: str, comfyui_dir: str) -> List[str]:
+def build_system_cli_args(image_path: str, video_path: str) -> List[str]:
     """
     Builds system-level arguments from the protected set of system keys.
     """
     system_args_dict = {
         "input_image": os.path.basename(image_path),
         "input_video": os.path.basename(video_path),
-        "comfyui_directory": comfyui_dir,
     }
     # Pass the specific set of keys reserved for the system
-    return _validate_and_map_args(
+    mapped_args = _validate_and_map_args(
         system_args_dict, allowed_keys=SYSTEM_ONLY_KEYS, strict=True
     )
-    # return _dict_to_cli_args(mapped_args)
+    return _dict_to_cli_args(mapped_args)

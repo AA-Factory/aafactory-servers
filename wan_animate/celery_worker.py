@@ -11,7 +11,6 @@ from wan_animate.worker_utils import (
     run_python_command,
     write_bytes_to_path,
 )
-from wan_animate.workflow import main
 
 logger = get_task_logger(__name__)
 logger.setLevel("INFO")
@@ -46,7 +45,6 @@ app.conf.result_backend_transport_options = {
 GENERATE_SCRIPT = "/app/wan_animate/workflow.py"
 # Root directory for workflow (inside the docker container)
 WORKFLOW_ROOT_DIR = "/app/wan_animate"
-COMFYUI_PATH = "/app/wan_animate/ComfyUI"
 INPUT_PATH = "/app/wan_animate/ComfyUI/input/"
 OUTPUT_PATH = "/app/wan_animate/ComfyUI/output/"
 # Define paths for input files
@@ -98,16 +96,15 @@ def _run_pipeline(image_bytes: bytes, video_bytes: bytes, user_args: dict) -> by
         logger.info(f"Will write generated output to: {OUTPUT_PATH}")
 
         # 2) Set up environment and run workflow
-        system_cli_args = build_system_cli_args(image_path, video_path, COMFYUI_PATH)
+        system_cli_args = build_system_cli_args(image_path, video_path)
         user_cli_args = build_user_cli_args(user_args)
-        # generate_command = (
-        #     [sys.executable, GENERATE_SCRIPT] + system_cli_args + user_cli_args
-        # )
+        generate_command = (
+            [sys.executable, GENERATE_SCRIPT] + system_cli_args + user_cli_args
+        )
 
         # 3) Start generation
         logger.info("Generation started...")
-        main(**{**system_cli_args, **user_cli_args})
-        # run_python_command(generate_command, cwd=WORKFLOW_ROOT_DIR)
+        run_python_command(generate_command, cwd=WORKFLOW_ROOT_DIR)
         logger.info("Generation finished.")
 
         # 4) Read output file into bytes and return
