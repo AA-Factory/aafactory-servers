@@ -5,6 +5,7 @@ from typing import Any, Dict, List
 
 from wan_animate.arg_config import ARG_CONFIG, SYSTEM_ONLY_KEYS, USER_SETTABLE_KEYS
 
+
 def _validate_and_map_args(
     args: Dict[str, Any], allowed_keys: set[str], strict: bool = True
 ) -> Dict[str, Any]:
@@ -46,6 +47,7 @@ def _dict_to_cli_args(overrides: Dict[str, Any]) -> List[str]:
     for k, v in overrides.items():
         out.extend([f"--{k}", json.dumps(v)])
     return out
+
 
 def build_user_cli_args(user_args: Dict[str, Any]) -> List[str]:
     """

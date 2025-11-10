@@ -47,7 +47,7 @@ GENERATE_SCRIPT = "/app/wan_animate/workflow.py"
 WORKFLOW_ROOT_DIR = "/app/wan_animate"
 INPUT_PATH = "/app/wan_animate/ComfyUI/input/"
 OUTPUT_PATH = "/app/wan_animate/ComfyUI/output/"
-# Define paths for input files
+# Define name of the input files to be stored in Comfyui
 INPUT_IMAGE_FILE_NAME = "image"
 INPUT_VIDEO_FILE_NAME = "video"
 # Define which videos we want to read after generation
@@ -113,15 +113,18 @@ def _run_pipeline(image_bytes: bytes, video_bytes: bytes, user_args: dict) -> by
     except Exception as e:
         logger.exception("Pipeline failed")
         raise RuntimeError(f"Pipeline failed: {e}")
-    
+
+
 def _fetch_output() -> bytes:
     """Reads the generated output video file and returns its bytes."""
+
     logger.info(f"Output folder has following files:")
     for root, _, files in os.walk(OUTPUT_PATH):
         for file in files:
             logger.info(os.path.join(root, file))
     with open(OUTPUT_VIDEO_PATH, "rb") as f:
         return f.read()
+
 
 def _cleanup_old_inputs_outputs():
     """Cleans up old input and output files to avoid interference."""

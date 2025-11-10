@@ -5,12 +5,12 @@ ARG_CONFIG = {
     "blocks_to_swap": {
         "map_to": "blocks_to_swap41",
         "type": to_int,
-        "help": "Number of blocks to swap to RAM",
+        "help": "Number of blocks to swap to RAM (max 40)",
     },
     "prefetch_blocks": {
         "map_to": "prefetch_blocks46",
         "type": to_int,
-        "help": "Number of blocks to prefetch.",
+        "help": "Number of blocks to prefetch. (1 if blocks_to_swap<40)",
     },
     "block_swap_debug": {
         "map_to": "block_swap_debug47",
@@ -45,7 +45,7 @@ ARG_CONFIG = {
     "framerate": {
         "map_to": "value2",
         "type": to_int,
-        "help": "Output framerate (FPS).",
+        "help": "Output framerate (FPS). Will be interpolated.",
     },
     "resolution": {
         "map_to": "value3",
