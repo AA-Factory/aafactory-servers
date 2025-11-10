@@ -73,8 +73,13 @@ ARG_CONFIG = {
         "type": to_str,
         "help": "Input video file name.",
     },
+    "comfyui_directory": {
+        "map_to": "comfyui_directory",
+        "type": to_str,
+        "help": "Path to Comfyui directory.",
+    },
 }
 
-SYSTEM_ONLY_KEYS = {"input_image", "input_video"}
+SYSTEM_ONLY_KEYS = {"input_image", "input_video", "comfyui_directory"}
 
 USER_SETTABLE_KEYS = set(ARG_CONFIG.keys()) - SYSTEM_ONLY_KEYS

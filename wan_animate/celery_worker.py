@@ -46,6 +46,7 @@ app.conf.result_backend_transport_options = {
 GENERATE_SCRIPT = "/app/wan_animate/workflow.py"
 # Root directory for workflow (inside the docker container)
 WORKFLOW_ROOT_DIR = "/app/wan_animate"
+COMFYUI_PATH = "/app/wan_animate/ComfyUI"
 INPUT_PATH = "/app/wan_animate/ComfyUI/input/"
 OUTPUT_PATH = "/app/wan_animate/ComfyUI/output/"
 # Define paths for input files
@@ -97,7 +98,7 @@ def _run_pipeline(image_bytes: bytes, video_bytes: bytes, user_args: dict) -> by
         logger.info(f"Will write generated output to: {OUTPUT_PATH}")
 
         # 2) Set up environment and run workflow
-        system_cli_args = build_system_cli_args(image_path, video_path)
+        system_cli_args = build_system_cli_args(image_path, video_path, COMFYUI_PATH)
         user_cli_args = build_user_cli_args(user_args)
         # generate_command = (
         #     [sys.executable, GENERATE_SCRIPT] + system_cli_args + user_cli_args

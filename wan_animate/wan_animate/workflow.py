@@ -1165,7 +1165,7 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "--queue-size",
+    "--queue_size",
     "-q",
     type=int,
     default=1,
@@ -1173,7 +1173,7 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "--comfyui-directory",
+    "--comfyui_directory",
     "-c",
     default=None,
     help="Where to look for ComfyUI (default: current directory)",
@@ -1187,7 +1187,7 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "--disable-metadata",
+    "--disable_metadata",
     action="store_true",
     help="Disables writing workflow metadata to the outputs",
 )

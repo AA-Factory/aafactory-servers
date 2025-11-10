@@ -67,13 +67,14 @@ def build_user_cli_args(user_args: Dict[str, Any]) -> List[str]:
     # return _dict_to_cli_args(mapped_args)
 
 
-def build_system_cli_args(image_path: str, video_path: str) -> List[str]:
+def build_system_cli_args(image_path: str, video_path: str, comfyui_dir: str) -> List[str]:
     """
     Builds system-level arguments from the protected set of system keys.
     """
     system_args_dict = {
         "input_image": os.path.basename(image_path),
         "input_video": os.path.basename(video_path),
+        "comfyui_directory": comfyui_dir,
     }
     # Pass the specific set of keys reserved for the system
     return _validate_and_map_args(
