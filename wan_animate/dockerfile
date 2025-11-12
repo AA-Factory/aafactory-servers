@@ -10,7 +10,7 @@ ENV BUILD_ENV=${BUILD_ENV}
 # Install Python, pip, git, and other essentials
 RUN --mount=type=cache,target=/var/cache/apt \
     apt-get update && apt-get install -y \
-    python3.10 python3-pip git ffmpeg redis-server libcairo2-dev pkg-config curl\
+    python3.10 python3-pip git ffmpeg redis-server libcairo2-dev pkg-config curl libmagic1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Set python3.10 as the default python
@@ -32,7 +32,11 @@ RUN chmod +x ./init_comfyui.sh
 RUN ./init_comfyui.sh
     
 # Copy all application-specific files in one go.
-COPY comfyui_logic/workflow.py /app/comfyui_logic/workflow.py
+COPY wan_animate/workflow.py /app/wan_animate/workflow.py
+COPY wan_animate/arg_builder.py /app/wan_animate/arg_builder.py
+COPY wan_animate/arg_config.py /app/wan_animate/arg_config.py
+COPY wan_animate/arg_utils.py /app/wan_animate/arg_utils.py
+COPY wan_animate/worker_utils.py /app/wan_animate/worker_utils.py
 COPY celery_worker.py .
 COPY download_models.sh .
 COPY install_sage_attention.sh .
