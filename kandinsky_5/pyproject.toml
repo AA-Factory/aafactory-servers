@@ -1,0 +1,42 @@
+[project]
+name = "kandinsky"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "ipykernel",
+    "ipywidgets",
+    "pillow",
+    "packaging",
+    "requests",
+    "anyio",
+    "pydantic",
+    "aiohttp",
+    "websocket-client",
+    "beautifulsoup4",
+    "torch>=2.8.0",
+    "torchvision",
+    "transformers>=4.56.2",
+    "diffusers",
+    "accelerate",
+    "einops",
+    "imageio",
+    "imageio-ffmpeg",
+    "opencv-python",
+    "pytest",
+    "sentencepiece",
+    "tqdm",
+    "av",
+    "omegaconf",
+    "ninja",
+    "numpy",
+    "bitsandbytes",
+    "hf-transfer>=0.1.9",
+    "celery>=5.5.3",
+    "redis>=7.0.1",
+]
+
+[tool.uv]
+# Room here for GPU wheels or custom indexes later
+
