@@ -17,7 +17,7 @@ steps:
     args:
       - '-c'
       - |
-        TAG="${TAG_NAME#q-}"
+        TAG="${TAG_NAME#kandinsky-}"
         docker buildx build \
           --platform=linux/amd64 \
           --tag=aafactory/kandinsky-server:$$TAG \
