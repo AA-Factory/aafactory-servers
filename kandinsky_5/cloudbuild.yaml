@@ -17,7 +17,7 @@ steps:
     args:
       - '-c'
       - |
-        TAG="${TAG_NAME#kandinsky-}"
+        TAG="${TAG_NAME#q-}"
         docker buildx build \
           --platform=linux/amd64 \
           --tag=aafactory/kandinsky-server:$$TAG \
@@ -26,7 +26,7 @@ steps:
           .
     env:
       - 'TAG_NAME=$TAG_NAME'
-    dir: 'kandinsky'
+    dir: 'kandinsky_5'
 
 # Configure secrets
 availableSecrets:
