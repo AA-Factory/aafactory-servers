@@ -1,7 +1,8 @@
 #!/bin/bash
 set -e
 
-./install_sage_attention.sh
+uv run python kandinsky/download_models.py &
+./install_sage_attention.sh &
 # Start redis-server in the background
 redis-server --protected-mode no &
 
