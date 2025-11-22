@@ -3,8 +3,8 @@ import os
 import logging
 from typing import Any, Dict, List
 
-from wan_animate.wan_animate.cli_arguments.config_animate import ArgumentConfigAnimate
-from wan_animate.wan_animate.cli_arguments.config_replace import ArgumentConfigReplace
+from wan_animate.cli_arguments.config_animate import ArgumentConfigAnimate
+from wan_animate.cli_arguments.config_replace import ArgumentConfigReplace
 
 class ArgumentBuilder:
     def __init__(self, config: ArgumentConfigAnimate | ArgumentConfigReplace):

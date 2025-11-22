@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from wan_animate.wan_animate.cli_arguments.utils import to_int, to_float, to_str, to_bool, to_list
+from wan_animate.cli_arguments.utils import to_int, to_float, to_str, to_bool, to_list
 
 ARGUMENTS_ANIMATE = {
     # ------ User Arguments ------

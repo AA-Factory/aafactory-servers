@@ -2,9 +2,9 @@ import os
 import sys
 from celery import Celery
 from celery.utils.log import get_task_logger
-from wan_animate.wan_animate.cli_arguments.builder import ArgumentBuilder
-from wan_animate.wan_animate.cli_arguments.config_animate import ArgumentConfigAnimate
-from wan_animate.wan_animate.cli_arguments.config_replace import ArgumentConfigReplace
+from wan_animate.cli_arguments.builder import ArgumentBuilder
+from wan_animate.cli_arguments.config_animate import ArgumentConfigAnimate
+from wan_animate.cli_arguments.config_replace import ArgumentConfigReplace
 from wan_animate.worker_utils import (
     b64_to_bytes,
     bytes_to_b64,
