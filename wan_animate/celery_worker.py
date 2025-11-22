@@ -25,24 +25,6 @@ app = Celery(
     broker=f"redis://{REDIS_HOST}:{REDIS_PORT}/0",
     backend=f"redis://{REDIS_HOST}:{REDIS_PORT}/0",
 )
-# Use JSON serializer and encode binary inputs/outputs with base64 so messages are safe and JSON-serializable.
-app.conf.update(
-    task_serializer="json",
-    result_serializer="json",
-    accept_content=["json"],  # only accept JSON-serialized tasks/results
-)
-app.conf.task_queues = {
-    "animate": {"exchange": "animate", "routing_key": "animate"},
-}
-app.conf.broker_transport_options = {
-    "socket_keepalive": True,
-    "socket_timeout": 30,  # seconds for socket ops
-    "socket_connect_timeout": 10,
-}
-app.conf.result_backend_transport_options = {
-    "socket_keepalive": True,
-    "socket_timeout": 30,
-}
 
 GENERATE_ANIMATE_SCRIPT = "/app/wan_animate/workflows/workflow_animate.py"
 GENERATE_REPLACE_SCRIPT = "/app/wan_animate/workflows/workflow_replace.py"
@@ -57,11 +39,19 @@ INPUT_VIDEO_FILE_NAME = "video"
 OUTPUT_VIDEO_PATH = os.path.join(OUTPUT_PATH, "Wanimate_Interpolated_00001-audio.mp4")
 
 
-@app.task(name="image_and_video_to_video", queue="wan_animate")
+@app.task(name="image_and_video_to_video_animate", queue="wan_animate")
 def image_and_video_to_video_animate(
     image_bytes: str, video_bytes: str, user_args: dict = None
 ) -> dict:
     return image_and_video_to_video("animate", image_bytes, video_bytes, user_args)
+
+
+@app.task(name="image_and_video_to_video_replace", queue="wan_replace")
+def image_and_video_to_video_replace(
+    image_bytes: str, video_bytes: str, user_args: dict = None
+) -> dict:
+    return image_and_video_to_video("replace", image_bytes, video_bytes, user_args)
+
 
 def image_and_video_to_video(
     generation_type: str, image_bytes: str, video_bytes: str, user_args: dict = None
@@ -72,7 +62,9 @@ def image_and_video_to_video(
     """
     image_bytes = b64_to_bytes(image_bytes)
     video_bytes = b64_to_bytes(video_bytes)
-    output_video_bytes = _run_pipeline(generation_type, image_bytes, video_bytes, user_args or {})
+    output_video_bytes = _run_pipeline(
+        generation_type, image_bytes, video_bytes, user_args or {}
+    )
     return bytes_to_b64(output_video_bytes)
 
 
@@ -90,7 +82,9 @@ def _load_and_save_inputs(image_bytes: bytes, video_bytes: bytes) -> None:
     return image_path, video_path
 
 
-def _run_pipeline(generation_type: str, image_bytes: bytes, video_bytes: bytes, user_args: dict) -> bytes:
+def _run_pipeline(
+    generation_type: str, image_bytes: bytes, video_bytes: bytes, user_args: dict
+) -> bytes:
     """
     Core pipeline: cleanup, write incoming bytes to files, run generate, read output bytes.
     Always returns bytes of the created output file.
