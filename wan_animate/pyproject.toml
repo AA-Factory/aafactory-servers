@@ -91,6 +91,7 @@ dependencies = [
     "packaging",
     "setuptools",
     "wheel",
+    "ninja",
 ]
 
 extra-index-url = [
