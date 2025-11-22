@@ -100,10 +100,10 @@ def _run_pipeline(
         # 2) Set up environment and run workflow
         if generation_type == "replace":
             generate_script = GENERATE_REPLACE_SCRIPT
-            argument_config = ArgumentConfigAnimate()
+            argument_config = ArgumentConfigReplace()
         else:
             generate_script = GENERATE_ANIMATE_SCRIPT
-            argument_config = ArgumentConfigReplace()
+            argument_config = ArgumentConfigAnimate()
 
         argument_builder = ArgumentBuilder(argument_config)
         system_cli_args = argument_builder.build_system_cli_args(image_path, video_path)
