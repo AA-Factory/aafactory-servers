@@ -32,10 +32,12 @@ RUN chmod +x ./init_comfyui.sh
 RUN ./init_comfyui.sh
     
 # Copy all application-specific files in one go.
-COPY wan_animate/workflow.py /app/wan_animate/workflow.py
-COPY wan_animate/arg_builder.py /app/wan_animate/arg_builder.py
-COPY wan_animate/arg_config.py /app/wan_animate/arg_config.py
-COPY wan_animate/arg_utils.py /app/wan_animate/arg_utils.py
+COPY wan_animate/workflows/workflow_animate.py /app/wan_animate/workflows/workflow_animate.py
+COPY wan_animate/workflows/workflow_replace.py /app/wan_animate/workflows/workflow_replace.py
+COPY wan_animate/cli_arguments/builder.py /app/wan_animate/cli_arguments/builder.py
+COPY wan_animate/cli_arguments/config_animate.py /app/wan_animate/cli_arguments/config_animate.py
+COPY wan_animate/cli_arguments/config_replace.py /app/wan_animate/cli_arguments/config_replace.py
+COPY wan_animate/cli_arguments/utils.py /app/wan_animate/cli_arguments/utils.py
 COPY wan_animate/worker_utils.py /app/wan_animate/worker_utils.py
 COPY celery_worker.py .
 COPY download_models.sh .
