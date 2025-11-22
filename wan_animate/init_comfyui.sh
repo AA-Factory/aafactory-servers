@@ -41,4 +41,5 @@ git -C "$CUSTOM_NODES_DIR/ComfyMath" checkout c01177221c31b8e5fbc062778fc8254aeb
     git -C "$CUSTOM_NODES_DIR/comfyui_controlnet_aux" checkout 12f35647f0d510e03b45a47fb420fe1245a575df && \
     git -C "$CUSTOM_NODES_DIR/rgthree-comfy" checkout 2b9eb36d3e1741e88dbfccade0e08137f7fa2bfb
 
+cp "$BASE_DIR/additional_custom_nodes.py" "$CUSTOM_NODES_DIR/"
 echo "Setup complete."

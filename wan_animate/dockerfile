@@ -39,11 +39,10 @@ COPY wan_animate/arg_utils.py /app/wan_animate/arg_utils.py
 COPY wan_animate/worker_utils.py /app/wan_animate/worker_utils.py
 COPY celery_worker.py .
 COPY download_models.sh .
-COPY install_sage_attention.sh .
 COPY entrypoint.sh .
 
 # Make the scripts executable
-RUN chmod +x /app/entrypoint.sh /app/install_sage_attention.sh /app/download_models.sh
+RUN chmod +x /app/entrypoint.sh /app/download_models.sh
 
 # Set the entrypoint
 ENTRYPOINT ["/app/entrypoint.sh"]

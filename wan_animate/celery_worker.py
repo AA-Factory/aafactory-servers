@@ -2,7 +2,9 @@ import os
 import sys
 from celery import Celery
 from celery.utils.log import get_task_logger
-from wan_animate.arg_builder import build_system_cli_args, build_user_cli_args
+from wan_animate.wan_animate.cli_arguments.builder import ArgumentBuilder
+from wan_animate.wan_animate.cli_arguments.config_animate import ArgumentConfigAnimate
+from wan_animate.wan_animate.cli_arguments.config_replace import ArgumentConfigReplace
 from wan_animate.worker_utils import (
     b64_to_bytes,
     bytes_to_b64,
@@ -42,7 +44,8 @@ app.conf.result_backend_transport_options = {
     "socket_timeout": 30,
 }
 
-GENERATE_SCRIPT = "/app/wan_animate/workflow.py"
+GENERATE_ANIMATE_SCRIPT = "/app/wan_animate/workflows/workflow_animate.py"
+GENERATE_REPLACE_SCRIPT = "/app/wan_animate/workflows/workflow_replace.py"
 # Root directory for workflow (inside the docker container)
 WORKFLOW_ROOT_DIR = "/app/wan_animate"
 INPUT_PATH = "/app/wan_animate/ComfyUI/input/"
@@ -55,8 +58,13 @@ OUTPUT_VIDEO_PATH = os.path.join(OUTPUT_PATH, "Wanimate_Interpolated_00001-audio
 
 
 @app.task(name="image_and_video_to_video", queue="wan_animate")
-def image_and_video_to_video(
+def image_and_video_to_video_animate(
     image_bytes: str, video_bytes: str, user_args: dict = None
+) -> dict:
+    return image_and_video_to_video("animate", image_bytes, video_bytes, user_args)
+
+def image_and_video_to_video(
+    generation_type: str, image_bytes: str, video_bytes: str, user_args: dict = None
 ) -> dict:
     """
     Accepts image and video as base64-encoded strings.
@@ -64,7 +72,7 @@ def image_and_video_to_video(
     """
     image_bytes = b64_to_bytes(image_bytes)
     video_bytes = b64_to_bytes(video_bytes)
-    output_video_bytes = _run_pipeline(image_bytes, video_bytes, user_args or {})
+    output_video_bytes = _run_pipeline(generation_type, image_bytes, video_bytes, user_args or {})
     return bytes_to_b64(output_video_bytes)
 
 
@@ -82,7 +90,7 @@ def _load_and_save_inputs(image_bytes: bytes, video_bytes: bytes) -> None:
     return image_path, video_path
 
 
-def _run_pipeline(image_bytes: bytes, video_bytes: bytes, user_args: dict) -> bytes:
+def _run_pipeline(generation_type: str, image_bytes: bytes, video_bytes: bytes, user_args: dict) -> bytes:
     """
     Core pipeline: cleanup, write incoming bytes to files, run generate, read output bytes.
     Always returns bytes of the created output file.
@@ -96,10 +104,18 @@ def _run_pipeline(image_bytes: bytes, video_bytes: bytes, user_args: dict) -> by
         logger.info(f"Will write generated output to: {OUTPUT_PATH}")
 
         # 2) Set up environment and run workflow
-        system_cli_args = build_system_cli_args(image_path, video_path)
-        user_cli_args = build_user_cli_args(user_args)
+        if generation_type == "replace":
+            generate_script = GENERATE_REPLACE_SCRIPT
+            argument_config = ArgumentConfigAnimate()
+        else:
+            generate_script = GENERATE_ANIMATE_SCRIPT
+            argument_config = ArgumentConfigReplace()
+
+        argument_builder = ArgumentBuilder(argument_config)
+        system_cli_args = argument_builder.build_system_cli_args(image_path, video_path)
+        user_cli_args = argument_builder.build_user_cli_args(user_args)
         generate_command = (
-            [sys.executable, GENERATE_SCRIPT] + system_cli_args + user_cli_args
+            [sys.executable, generate_script] + system_cli_args + user_cli_args
         )
 
         # 3) Start generation

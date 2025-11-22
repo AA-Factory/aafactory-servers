@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ./download_models.sh
-./install_sage_attention.sh
+uv pip install sageattention==2.2.0
 
 echo "Starting Celery worker..."
 redis-server --protected-mode no &
