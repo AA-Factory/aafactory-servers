@@ -30,6 +30,7 @@ RUN uv sync
 COPY init_comfyui.sh .
 RUN chmod +x ./init_comfyui.sh
 RUN ./init_comfyui.sh
+COPY wan_animate/additional_custom_nodes.py /app/wan_animate/ComfyUI/custom_nodes/additional_custom_nodes.py
     
 # Copy all application-specific files in one go.
 COPY wan_animate/workflows/workflow_animate.py /app/wan_animate/workflows/workflow_animate.py
