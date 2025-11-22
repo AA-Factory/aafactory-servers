@@ -25,6 +25,7 @@ ENV TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9;9.0;12.0+PTX"
 RUN uv venv
 COPY pyproject.toml /app/pyproject.toml
 RUN uv sync
+RUN uv pip install sageattention==2.2.0 --no-build-isolation
 
 # Clone Comfyui and its custom nodes
 COPY init_comfyui.sh .
@@ -46,6 +47,5 @@ COPY entrypoint.sh .
 
 # Make the scripts executable
 RUN chmod +x /app/entrypoint.sh /app/download_models.sh
-
 # Set the entrypoint
 ENTRYPOINT ["/app/entrypoint.sh"]
