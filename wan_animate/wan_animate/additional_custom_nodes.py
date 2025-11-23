@@ -53,7 +53,7 @@ class PoseToSAMPoints:
     RETURN_NAMES = ("positive_coords")
 
     FUNCTION = "convert"
-    CATEGORY = "Pose"
+    CATEGORY = "Custom"
 
     def convert(self, pose, person_index=0, top_k_pose=6, top_k_face=1, top_k_left_hand=1, top_k_right_hand=1):
 
@@ -82,7 +82,7 @@ class PoseToSAMPoints:
         return (json.dumps(points),)
     
 
-class FaceMaskFromPoseKeypoints:
+class FaceMaskFromPoseKeypointsCustom:
     @classmethod
     def INPUT_TYPES(s):
         input_types = {
@@ -94,7 +94,7 @@ class FaceMaskFromPoseKeypoints:
         return input_types
     RETURN_TYPES = ("MASK",)
     FUNCTION = "createmask"
-    CATEGORY = "ControlNet Preprocessors/Pose Keypoint Postprocess"
+    CATEGORY = "Custom"
 
     def createmask(self, pose_kps, person_index):
         pose_frames = pose_kps
@@ -228,10 +228,10 @@ class FaceMaskFromPoseKeypoints:
     
 NODE_CLASS_MAPPINGS = {
     "PoseToSAMPoints": PoseToSAMPoints,
-    "FaceMaskFromPoseKeypoints": FaceMaskFromPoseKeypoints,
+    "FaceMaskFromPoseKeypointsCustom": FaceMaskFromPoseKeypointsCustom,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "PoseToSAMPoints": "PoseToSAMPoints",
-    "FaceMaskFromPoseKeypoints": "FaceMaskFromPoseKeypoints",
+    "FaceMaskFromPoseKeypointsCustom": "Face Mask From Pose Keypoints",
 }
