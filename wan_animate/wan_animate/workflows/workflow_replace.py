@@ -258,7 +258,7 @@ def save_image_wrapper(context, cls):
 
 def parse_arg(s: Any, default: Any = None) -> Any:
     """Parses a JSON string, returning it unchanged if the parsing fails."""
-    if __name__ == "__main__" or not isinstance(s, str):
+    if not isinstance(s, str):
         return s
 
     try:
@@ -1297,7 +1297,7 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "--queue-size",
+    "--queue_size",
     "-q",
     type=int,
     default=1,
@@ -1305,7 +1305,7 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "--comfyui-directory",
+    "--comfyui_directory",
     "-c",
     default=None,
     help="Where to look for ComfyUI (default: current directory)",
@@ -1319,7 +1319,7 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "--disable-metadata",
+    "--disable_metadata",
     action="store_true",
     help="Disables writing workflow metadata to the outputs",
 )
@@ -1769,7 +1769,7 @@ def main(*func_args, **func_kwargs):
                 device=parse_arg(args.device66),
                 per_batch=parse_arg(args.per_batch67),
                 image=get_value_at_index(vhs_loadvideo_13, 0),
-                unique_id=1846348952956490158,
+                unique_id=11837154926315515632,
             )
 
             generateframesbycount_9 = generateframesbycount.r(
@@ -1789,7 +1789,7 @@ def main(*func_args, **func_kwargs):
                 device=parse_arg(args.device76),
                 per_batch=parse_arg(args.per_batch77),
                 image=get_value_at_index(loadimage_64, 0),
-                unique_id=13528543081259825256,
+                unique_id=1869368397908059920,
             )
 
             pixelperfectresolution_58 = pixelperfectresolution.execute(
