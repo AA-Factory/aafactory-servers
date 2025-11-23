@@ -56,7 +56,10 @@ class ArgumentBuilder:
         """
         out: List[str] = []
         for k, v in overrides.items():
-            out.extend([f"--{k}", json.dumps(v)])
+            if isinstance(v, str):
+                out.extend([f"--{k}", v])  # no quotes
+            else:
+                out.extend([f"--{k}", json.dumps(v)])
         return out
 
 
