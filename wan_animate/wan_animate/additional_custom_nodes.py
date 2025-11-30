@@ -6,14 +6,16 @@ import numpy as np
 from einops import rearrange
 
 
-def extract_best_points_from_pose_part(pose: dict, part: str, top_k: int):    
+def extract_best_points_from_pose_part(pose: dict, part: str, top_k: int) -> list[dict]:   
     points = pose.get(part, [])
+    if not points:
+        return []
     xy_coords = extract_xy_coords_from_points(points)
     most_avg_coords = most_average_points(xy_coords, top_k)
     return most_avg_coords
 
 
-def extract_xy_coords_from_points(points: list[float]):    
+def extract_xy_coords_from_points(points: list[float]) -> list[dict]:    
     xy_coords = []
     for i in range(0, len(points), 3):
         if i+2 < len(points):
@@ -25,7 +27,7 @@ def extract_xy_coords_from_points(points: list[float]):
     return xy_coords
 
 
-def most_average_points(points, k):
+def most_average_points(points: list[dict], k: int) -> list[dict]:
     pts = np.array([[p["x"], p["y"]] for p in points])
     center = pts.mean(axis=0)
     dist = np.linalg.norm(pts - center, axis=1)

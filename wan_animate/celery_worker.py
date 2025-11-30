@@ -46,7 +46,7 @@ def image_and_video_to_video_animate(
     return image_and_video_to_video("animate", image_bytes, video_bytes, user_args)
 
 
-@app.task(name="image_and_video_to_video_replace", queue="wan_replace")
+@app.task(name="image_and_video_to_video_replace", queue="wan_animate")
 def image_and_video_to_video_replace(
     image_bytes: str, video_bytes: str, user_args: dict = None
 ) -> dict:
