@@ -30,12 +30,15 @@ RUN uv sync
 COPY init_comfyui.sh .
 RUN chmod +x ./init_comfyui.sh
 RUN ./init_comfyui.sh
+COPY wan_animate/additional_custom_nodes.py /app/wan_animate/ComfyUI/custom_nodes/additional_custom_nodes.py
     
 # Copy all application-specific files in one go.
-COPY wan_animate/workflow.py /app/wan_animate/workflow.py
-COPY wan_animate/arg_builder.py /app/wan_animate/arg_builder.py
-COPY wan_animate/arg_config.py /app/wan_animate/arg_config.py
-COPY wan_animate/arg_utils.py /app/wan_animate/arg_utils.py
+COPY wan_animate/workflows/workflow_animate.py /app/wan_animate/workflows/workflow_animate.py
+COPY wan_animate/workflows/workflow_replace.py /app/wan_animate/workflows/workflow_replace.py
+COPY wan_animate/cli_arguments/builder.py /app/wan_animate/cli_arguments/builder.py
+COPY wan_animate/cli_arguments/config_animate.py /app/wan_animate/cli_arguments/config_animate.py
+COPY wan_animate/cli_arguments/config_replace.py /app/wan_animate/cli_arguments/config_replace.py
+COPY wan_animate/cli_arguments/utils.py /app/wan_animate/cli_arguments/utils.py
 COPY wan_animate/worker_utils.py /app/wan_animate/worker_utils.py
 COPY celery_worker.py .
 COPY download_models.sh .
@@ -43,7 +46,6 @@ COPY install_sage_attention.sh .
 COPY entrypoint.sh .
 
 # Make the scripts executable
-RUN chmod +x /app/entrypoint.sh /app/install_sage_attention.sh /app/download_models.sh
-
+RUN chmod +x /app/entrypoint.sh /app/download_models.sh /app/install_sage_attention.sh
 # Set the entrypoint
 ENTRYPOINT ["/app/entrypoint.sh"]

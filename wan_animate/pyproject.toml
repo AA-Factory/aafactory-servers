@@ -90,7 +90,8 @@ dependencies = [
     "python-magic==0.4.27",
     "packaging",
     "setuptools",
-    "wheel"
+    "wheel",
+    "ninja",
 ]
 
 extra-index-url = [
