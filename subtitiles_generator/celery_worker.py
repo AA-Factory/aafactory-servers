@@ -36,6 +36,8 @@ INPUT_VIDEO_FILE_NAME = "video"
 # Define which videos we want to read after generation
 OUTPUT_VIDEO_PATH = os.path.join(OUTPUT_PATH, "Wanimate_Interpolated_00001-audio.mp4")
 
+DATA_DIR_PATH = "/app/subtitle_generator/data/"
+
 
 @app.task(name="generate_subtitles", queue="generate_subtitles")
 def generate_subtitles(video_bytes: str, user_args: dict = None) -> dict:
@@ -59,13 +61,13 @@ def _run_pipeline(video_bytes: bytes, user_args: dict) -> bytes:
         # 1) Write inputs to input folder
         video_path = _load_and_save_inputs(video_bytes)
         logger.info(f"Wrote input bytes to {video_path}")
-        logger.info(f"Will write generated output to: {OUTPUT_PATH}")
+        logger.info(f"Will write generated output to: {DATA_DIR_PATH}")
 
         # 2) Run subtitle generation script
-        generate_subtitles_pipeline(video_path, user_args)
+        srt_path = generate_subtitles_pipeline(video_path, user_args)
 
         # 3) Read output file into bytes and return
-        return _fetch_output()
+        return _fetch_output(srt_path)
 
     except Exception as e:
         logger.exception("Pipeline failed")
@@ -76,26 +78,24 @@ def _load_and_save_inputs(video_bytes: bytes) -> None:
     """Determine extensions, build paths, and write files"""
 
     video_ext = detect_file_extension(video_bytes)
-
-    video_path = os.path.join(INPUT_PATH, f"{INPUT_VIDEO_FILE_NAME}.{video_ext}")
+    video_path = os.path.join(DATA_DIR_PATH, f"video.{video_ext}")
 
     write_bytes_to_path(video_bytes, path=video_path)
     return video_path
 
 
-def _fetch_output() -> bytes:
+def _fetch_output(srt_path: str) -> bytes:
     """Reads the generated output file and returns its bytes."""
 
     logger.info(f"Output folder has following files:")
-    for root, _, files in os.walk(OUTPUT_PATH):
+    for root, _, files in os.walk(DATA_DIR_PATH):
         for file in files:
             logger.info(os.path.join(root, file))
-    with open(OUTPUT_VIDEO_PATH, "rb") as f:
+    with open(srt_path, "rb") as f:
         return f.read()
 
 
 def _cleanup_old_inputs_outputs():
     """Cleans up old input and output files to avoid interference."""
 
-    delete_files_from_folder(INPUT_PATH)
-    delete_files_from_folder(OUTPUT_PATH)
+    delete_files_from_folder(DATA_DIR_PATH)
