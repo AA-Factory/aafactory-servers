@@ -1,0 +1,35 @@
+FROM nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04
+
+# Prevent interactive prompts during build
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+
+ARG BUILD_ENV=local
+ENV BUILD_ENV=${BUILD_ENV}
+
+# Install Python, pip, git, and other essentials
+RUN --mount=type=cache,target=/var/cache/apt \
+    apt-get update && apt-get install -y \
+    python3.10 python3-pip git ffmpeg redis-server libcairo2-dev pkg-config curl libmagic1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set python3.10 as the default python
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.10 1
+
+WORKDIR /app
+
+RUN pip install uv
+
+RUN uv venv
+COPY pyproject.toml /app/pyproject.toml
+RUN uv sync
+
+# Copy all application-specific files in one go.
+COPY wan_animate/worker_utils.py /app/wan_animate/worker_utils.py
+COPY celery_worker.py .
+COPY entrypoint.sh .
+
+# Make the scripts executable
+RUN chmod +x /app/entrypoint.sh
+# Set the entrypoint
+ENTRYPOINT ["/app/entrypoint.sh"]
