@@ -1,10 +1,9 @@
 import os
-import sys
 from celery import Celery
 from celery.utils.log import get_task_logger
 
-from subtitiles_generator.subtitles_generator.generate_subtitles_pipeline import generate_subtitles_pipeline
-from subtitiles_generator.subtitles_generator.worker_utils import (
+from subtitles_generator.generate_subtitles_pipeline import generate_subtitles_pipeline
+from subtitles_generator.worker_utils import (
     b64_to_bytes,
     bytes_to_b64,
     delete_files_from_folder,
@@ -24,20 +23,8 @@ app = Celery(
     backend=f"redis://{REDIS_HOST}:{REDIS_PORT}/0",
 )
 
-GENERATE_ANIMATE_SCRIPT = "/app/wan_animate/workflows/workflow_animate.py"
-GENERATE_REPLACE_SCRIPT = "/app/wan_animate/workflows/workflow_replace.py"
-# Root directory for workflow (inside the docker container)
-WORKFLOW_ROOT_DIR = "/app/wan_animate"
-INPUT_PATH = "/app/wan_animate/ComfyUI/input/"
-OUTPUT_PATH = "/app/wan_animate/ComfyUI/output/"
-# Define name of the input files to be stored in Comfyui
-INPUT_IMAGE_FILE_NAME = "image"
-INPUT_VIDEO_FILE_NAME = "video"
-# Define which videos we want to read after generation
-OUTPUT_VIDEO_PATH = os.path.join(OUTPUT_PATH, "Wanimate_Interpolated_00001-audio.mp4")
-
 DATA_DIR_PATH = "/app/subtitle_generator/data/"
-
+os.makedirs(DATA_DIR_PATH, exist_ok=True)
 
 @app.task(name="generate_subtitles", queue="generate_subtitles")
 def generate_subtitles(video_bytes: str, user_args: dict = None) -> dict:

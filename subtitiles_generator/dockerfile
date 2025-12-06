@@ -6,6 +6,8 @@ ENV PYTHONUNBUFFERED=1
 
 ARG BUILD_ENV=local
 ENV BUILD_ENV=${BUILD_ENV}
+# Set environment variable to avoid error from WhisperX
+ENV TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=true
 
 # Install Python, pip, git, and other essentials
 RUN --mount=type=cache,target=/var/cache/apt \
@@ -25,7 +27,8 @@ COPY pyproject.toml /app/pyproject.toml
 RUN uv sync
 
 # Copy all application-specific files in one go.
-COPY wan_animate/worker_utils.py /app/wan_animate/worker_utils.py
+COPY subtitles_generator/generate_subtitles_pipeline.py /app/subtitles_generator/generate_subtitles_pipeline.py
+COPY subtitles_generator/worker_utils.py /app/subtitles_generator/worker_utils.py
 COPY celery_worker.py .
 COPY entrypoint.sh .
 

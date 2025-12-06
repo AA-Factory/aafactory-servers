@@ -21,12 +21,12 @@ def generate_subtitles_pipeline(video_path: str, user_args: dict) -> str:
 
     
     # 1. Audio Processing (Denoise + EQ combined)
-    print("2. Applying Audio Filters (Denoise + EQ)...")
+    print("1. Applying Audio Filters (Denoise + EQ)...")
     filters = "afftdn,highpass=f=200,lowpass=f=8000"
     run_command(["ffmpeg", "-y", "-i", video_path, "-af", filters, processed_video_path])
 
     # 2. Transcribe (WhisperX)
-    print("3. Transcribing with WhisperX...")
+    print("2. Transcribing with WhisperX...")
     cmd = [
         "whisperx", 
         "--model", "large-v3", 
